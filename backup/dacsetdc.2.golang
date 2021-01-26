@@ -1,0 +1,278 @@
+// Package dacsetdc implements Directly Addressable Codes (DACs) using
+// End-Tagged Dense Codes (ETDCs). These codes can be accessed randomly
+// with a short access time. Compression is average (cf delta codes).
+// The codes require a rank index to operate efficiently.
+// (not part of this package)
+package dacsetdc
+
+import (
+	"math"
+	"math/bits"
+)
+
+const numStr int = 10 // number of streams
+
+// Dacs ...
+type Dacs struct {
+	bitArr [numStr][]uint64 // bit-arrays
+	chunks [numStr][]byte   // chunk-arrays
+}
+
+// New creates and returns a DACS dictionary.
+func New() *Dacs {
+	return &Dacs{}
+}
+
+// WriteBool writes a boolean to the DACS dictionary.
+func (d *Dacs) WriteBool(x bool) int {
+	if x {
+		d.chunks[0] = append(d.chunks[0], 129)
+		d.extend(0)
+		return 1
+	}
+	d.chunks[0] = append(d.chunks[0], 128)
+	d.extend(0)
+	return 1
+}
+
+// WriteUint8 writes an uint8 to the DACS dictionary.
+func (d *Dacs) WriteUint8(x uint8) int {
+	return d.WriteUint64(uint64(x))
+}
+
+// WriteUint16 writes an uint16 to the DACS dictionary.
+func (d *Dacs) WriteUint16(x uint16) int {
+	return d.WriteUint64(uint64(x))
+}
+
+// WriteUint32 writes an uint32 to the DACS dictionary.
+func (d *Dacs) WriteUint32(x uint32) int {
+	return d.WriteUint64(uint64(x))
+}
+
+// WriteUint64 writes an uint64 to the DACS dictionary.
+func (d *Dacs) WriteUint64(x uint64) int {
+	d.chunks[0] = append(d.chunks[0], byte(x&127|128))
+	d.extend(0)
+	x >>= 7
+	k := 1
+
+	for x > 0 {
+		x--
+		d.chunks[k] = append(d.chunks[k], byte(x&127))
+		d.extend(k)
+		i := len(d.chunks[k-1]) - 1
+		d.bitArr[k-1][i>>6] = d.bitArr[k-1][i>>6] | uint64(1)<<uint(i)
+		x >>= 7
+		k++
+	}
+
+	return k
+}
+
+// WriteInt8 writes an int8 to the DACS dictionary.
+func (d *Dacs) WriteInt8(x int8) int {
+	ux := uint8(x) << 1
+	if x < 0 {
+		ux = ^ux
+	}
+	return d.WriteUint64(uint64(ux))
+}
+
+// WriteInt16 writes an int16 to the DACS dictionary.
+func (d *Dacs) WriteInt16(x int16) int {
+	ux := uint16(x) << 1
+	if x < 0 {
+		ux = ^ux
+	}
+	return d.WriteUint64(uint64(ux))
+}
+
+// WriteInt32 writes an int32 to the DACS dictionary.
+func (d *Dacs) WriteInt32(x int32) int {
+	ux := uint32(x) << 1
+	if x < 0 {
+		ux = ^ux
+	}
+	return d.WriteUint64(uint64(ux))
+}
+
+// WriteInt64 writes an int64 to the DACS dictionary.
+func (d *Dacs) WriteInt64(x int64) int {
+	ux := uint64(x) << 1
+	if x < 0 {
+		ux = ^ux
+	}
+	return d.WriteUint64(ux)
+}
+
+// WriteFloat32 writes a float32 to the DACS dictionary.
+func (d *Dacs) WriteFloat32(x float32) int {
+	return d.WriteUint32(math.Float32bits(x))
+}
+
+// WriteFloat64 writes a float64 to the DACS dictionary.
+func (d *Dacs) WriteFloat64(x float64) int {
+	return d.WriteUint64(math.Float64bits(x))
+}
+
+// Dump prints the content of the DACS..
+// func (d *Dacs) Dump() {
+// 	for i := range d.chunks {
+// 		fmt.Printf("Stream %d:\n\tChunks: ", i)
+// 		for _, c := range d.chunks[i] {
+// 			fmt.Printf("%08b ", c)
+// 		}
+// 		fmt.Printf("\n\tBitarr: ")
+// 		for _, b := range d.bitArr[i] {
+// 			for j := uint8(0); j < 10; j++ {
+// 				set := 0
+// 				if b&(1<<j) != 0 {
+// 					set = 1
+// 				}
+// 				fmt.Printf("%8b ", set)
+// 			}
+// 		}
+// 		fmt.Println()
+// 	}
+// }
+
+// extend extends the size of the bit array for a given stream level.
+func (d *Dacs) extend(l int) {
+	if len(d.chunks[l])&63 == 1 { // %64
+		d.bitArr[l] = append(d.bitArr[l], 0)
+	}
+}
+
+//  base = [...]uint64{0, 128, 128 + 128*128, 128 + 128*128 + 128*128*128, ...}
+var base = [...]uint64{0, 128, 16512, 2113664, 270549120, 34630287488, 4432676798592, 567382630219904, 72624976668147840, 9295997013522923648}
+
+// var base = [...]uint64{
+// 	0,                                                                                                                                                             // 0
+// 	128,                                                                                                                                                           // 128
+// 	128 + 128*128,                                                                                                                                                 // 16512
+// 	128 + 128*128 + 128*128*128,                                                                                                                                   // 2113664
+// 	128 + 128*128 + 128*128*128 + 128*128*128*128,                                                                                                                 // 270549120
+// 	128 + 128*128 + 128*128*128 + 128*128*128*128 + 128*128*128*128*128,                                                                                           // 34630287488
+// 	128 + 128*128 + 128*128*128 + 128*128*128*128 + 128*128*128*128*128 + 128*128*128*128*128*128,                                                                 // 4432676798592
+// 	128 + 128*128 + 128*128*128 + 128*128*128*128 + 128*128*128*128*128 + 128*128*128*128*128*128 + 128*128*128*128*128*128*128,                                   // 567382630219904
+// 	128 + 128*128 + 128*128*128 + 128*128*128*128 + 128*128*128*128*128 + 128*128*128*128*128*128 + 128*128*128*128*128*128*128 + 128*128*128*128*128*128*128*128, // 72624976668147840
+// 	// 128 + 128*128 + 128*128*128 + 128*128*128*128 + 128*128*128*128*128 + 128*128*128*128*128*128 + 128*128*128*128*128*128*128 + 128*128*128*128*128*128*128*128 + 128*128*128*128*128*128*128*128*128, // -9150747060186627968
+// }
+
+// // ReadUint64 reads an uint64 at a given index from the DACS dictionary.
+// func (d *Dacs) ReadUint64(i int) uint64 {
+// 	var l int
+// 	buf[0] = d.chunks[0][i]
+// 	for d.bitArr[l][i>>6]&uint64(1<<uint(i&63)) != 0 {
+// 		i = d.bitRank(l, i)
+// 		l++
+// 		buf[l] = d.chunks[l][i]
+// 	}
+
+// 	return etdc.Decode(buff[:l+1])
+// }
+
+// ReadBool reads a boolean at a given index from the DACS dictionary.
+func (d *Dacs) ReadBool(i int) (x bool) {
+	if value := d.chunks[0][i] << 1; value != 0 {
+		return true
+	}
+	return false
+}
+
+// ReadUint8 reads an uint8 at a given index from the DACS dictionary.
+func (d *Dacs) ReadUint8(i int) (x uint8) { // Could be implemented faster as uint8 finish the native algorithm early.
+	return uint8(d.ReadUint64(i))
+}
+
+// ReadUint16 reads an uint16 at a given index from the DACS dictionary.
+func (d *Dacs) ReadUint16(i int) (x uint16) {
+	return uint16(d.ReadUint64(i))
+}
+
+// ReadUint32 reads an uint32 at a given index from the DACS dictionary.
+func (d *Dacs) ReadUint32(i int) (x uint32) {
+	return uint32(d.ReadUint64(i))
+}
+
+// ReadUint64 reads an uint64 at a given index from the DACS dictionary.
+func (d *Dacs) ReadUint64(i int) (x uint64) {
+	var l int
+	var buf [numStr]byte
+
+	buf[0] = d.chunks[0][i]
+	for d.bitArr[l][i>>6]&uint64(1<<uint(i&63)) != 0 {
+		i = d.bitRank(l, i)
+		l++
+		buf[l] = d.chunks[l][i]
+	}
+	lm1 := l
+
+	y := uint64(buf[l])
+	for y < 128 {
+		x = x<<7 + y
+		l--
+		y = uint64(buf[l])
+	}
+	return base[lm1] + x<<7 + y - 128
+}
+
+// ReadInt8 reads an int8 at a given index from the DACS dictionary.
+func (d *Dacs) ReadInt8(i int) int8 {
+	ux := uint8(d.ReadUint64(i))
+	x := int8(ux >> 1)
+	if ux&1 != 0 {
+		x = ^x
+	}
+	return x
+}
+
+// ReadInt16 reads an int16 at a given index from the DACS dictionary.
+func (d *Dacs) ReadInt16(i int) int16 {
+	ux := uint16(d.ReadUint64(i))
+	x := int16(ux >> 1)
+	if ux&1 != 0 {
+		x = ^x
+	}
+	return x
+}
+
+// ReadInt32 reads an int32 at a given index from the DACS dictionary.
+func (d *Dacs) ReadInt32(i int) int32 {
+	ux := uint32(d.ReadUint64(i))
+	x := int32(ux >> 1)
+	if ux&1 != 0 {
+		x = ^x
+	}
+	return x
+}
+
+// ReadInt64 reads an int64 at a given index from the DACS dictionary.
+func (d *Dacs) ReadInt64(i int) int64 {
+	ux := d.ReadUint64(i)
+	x := int64(ux >> 1)
+	if ux&1 != 0 {
+		x = ^x
+	}
+	return x
+}
+
+// ReadFloat32 reads a float32 at a given index from the DACS dictionary.
+func (d *Dacs) ReadFloat32(i int) float32 {
+	return math.Float32frombits(d.ReadUint32(i))
+}
+
+// ReadFloat64 reads a float64 at a given index from the DACS dictionary.
+func (d *Dacs) ReadFloat64(i int) float64 {
+	return math.Float64frombits(d.ReadUint64(i))
+}
+
+// bitRank is NOT an optimal implementation
+func (d *Dacs) bitRank(l, i int) int {
+	var rank int
+	for j := 0; j < i>>6; j++ {
+		rank += bits.OnesCount64(d.bitArr[l][j])
+	}
+	return rank + bits.OnesCount64(d.bitArr[l][i>>6]&((1<<uint(i&63))-1))
+}

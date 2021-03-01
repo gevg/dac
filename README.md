@@ -1,4 +1,4 @@
-# dac
+# Directly Addressable Codes
 dac
 
 ## References

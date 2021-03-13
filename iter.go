@@ -1,6 +1,9 @@
 package dac
 
-import "unsafe"
+import (
+	"errors"
+	"unsafe"
+)
 
 // Iterator ...
 type Iterator struct {
@@ -18,21 +21,21 @@ func NewIterator(d *Dict) Iterator {
 }
 
 // Value ...
-func (it *Iterator) Value(k int) (v uint64, err error) { // TODO
-	// i, j, k := it.k, 0, it.k
-	// if ok = (Len(it.d) <= i); !ok {
-	// 	return
-	// }
-	// it.k++
+func (it *Iterator) Value(k int) (v uint64, err error) {
+	if k < 0 || len(it.d.chunks[0]) <= k {
+		return 0, errors.New("dac: key k is out of bounds")
+	}
 
-	// buf := (*[nStreams]byte)(unsafe.Pointer(&v))
-	// buf[j] = it.d.chunks[j][i]
-	// for j < nStreams-1 && it.d.bit(j, i) {
-	// 	it.ranks[j]++
-	// 	i = it.ranks[j]
-	// 	j++
-	// 	buf[j] = it.d.chunks[j][i]
-	// }
+	buf := (*[nStreams]byte)(unsafe.Pointer(&v))
+	buf[0] = it.d.chunks[0][k]
+
+	var l int
+	for l < nStreams-1 && it.d.bit(l, k) { // l < nStreams-1 && d.bitArr[l][k>>6]&(1<<(k&63)) != 0 {
+		k = it.d.rank(l, k)
+		it.ranks[l] = k
+		l++
+		buf[l] = it.d.chunks[l][k]
+	}
 
 	return
 }
@@ -40,7 +43,7 @@ func (it *Iterator) Value(k int) (v uint64, err error) { // TODO
 // Next ...
 func (it *Iterator) Next() (k int, v uint64, ok bool) {
 	i, j, k := it.k, 0, it.k
-	if ok = (Len(it.d) <= i); !ok {
+	if ok = (i < Len(it.d)); !ok {
 		return
 	}
 	it.k++
@@ -57,52 +60,8 @@ func (it *Iterator) Next() (k int, v uint64, ok bool) {
 	return
 }
 
-// p64 := it.pos[stream]
-// b := it.buf[stream]
-// for b == 0 {
-// 	p64++
-// 	b = it.d.bitArr[stream][p64]
-// }
-// b &= b - 1
-// it.pos[stream] = p64
-// it.buf[stream] = b & (b - 1)
-// return p64<<6 + bits.TrailingZeros64(b)
-// }
-
-// func (it *Iterator) next(stream int) int {
-// 	p64 := it.pos[stream]
-// 	b := it.buf[stream]
-// 	for b == 0 {
-// 		p64++
-// 		b = it.d.bitArr[stream][p64]
-// 	}
-// 	b &= b - 1
-// 	it.pos[stream] = p64
-// 	it.buf[stream] = b & (b - 1)
-// 	return p64<<6 + bits.TrailingZeros64(b)
-// }
-
-// func (it *Iterator) next(stream int) (k int, v uint64) {
-// 	k = it.k
-// 	buf := (*[nStreams]byte)(unsafe.Pointer(&v))
-// 	buf[0] = it.d.chunks[0][k]
-
-// 	for i, b := range it.buf {
-// 		p := it.pos[i]
-// 		bitArr := it.d.bitArr[i]
-
-// 		for b == 0 {
-// 			p = p&^63 + 64
-// 			b = bitArr[p>>6]
-// 		}
-// 		p = p&^63 + bits.TrailingZeros64(b)
-// 		buf[i] = it.d.chunks[i+1][p]
-
-// 		it.pos[i] = p
-// 		it.buf[i] = b & (b - 1)
-// 	}
-
-// 	it.k++
-
-// 	return
-// }
+// Reset ...
+func (it *Iterator) Reset() {
+	it.k = 0
+	it.ranks = [nStreams - 1]int{-1, -1, -1, -1, -1, -1, -1}
+}

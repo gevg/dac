@@ -10,7 +10,7 @@ import (
 )
 
 func TestFrom(t *testing.T) {
-	const n = 100
+	const n = 1_000
 	numbers := make([]uint64, n)
 
 	r := rand.New(rand.NewSource(15))
@@ -40,7 +40,7 @@ func TestFrom(t *testing.T) {
 // }
 
 func TestReadWriteBool(t *testing.T) {
-	const n = 100
+	const n = 1_000
 
 	numbers := make([]bool, n)
 
@@ -70,7 +70,7 @@ func TestReadWriteBool(t *testing.T) {
 }
 
 func TestReadWriteUint8(t *testing.T) {
-	const n = 100
+	const n = 1_000
 
 	numbers := make([]uint8, n)
 
@@ -98,7 +98,7 @@ func TestReadWriteUint8(t *testing.T) {
 }
 
 func TestReadWriteUint16(t *testing.T) {
-	const n = 100
+	const n = 1_000
 
 	numbers := make([]uint16, n)
 
@@ -127,8 +127,38 @@ func TestReadWriteUint16(t *testing.T) {
 	}
 }
 
+func TestReadWriteUint162(t *testing.T) {
+	const n = 1_000
+
+	numbers := make([]uint16, n)
+
+	r := rand.New(rand.NewSource(15))
+	zipf := rand.NewZipf(r, 1.15, 1, math.MaxUint16)
+
+	for i := range numbers {
+		numbers[i] = uint16(zipf.Uint64())
+	}
+
+	d, err := New(n)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for _, v := range numbers {
+		d.WriteUint16(v)
+	}
+	d.Close()
+
+	for k, want := range numbers {
+		got, err := d.ReadUint162(k)
+		if got != want || err != nil {
+			t.Errorf("k: %d - got: %v, want: %v\n", k, got, want)
+		}
+	}
+}
+
 func TestReadWriteUint32(t *testing.T) {
-	const n = 100
+	const n = 1_000
 
 	numbers := make([]uint32, n)
 
@@ -157,8 +187,38 @@ func TestReadWriteUint32(t *testing.T) {
 	}
 }
 
+func TestReadWriteUint322(t *testing.T) {
+	const n = 1_000
+
+	numbers := make([]uint32, n)
+
+	r := rand.New(rand.NewSource(15))
+	zipf := rand.NewZipf(r, 1.15, 1, math.MaxUint32)
+
+	for i := range numbers {
+		numbers[i] = uint32(zipf.Uint64())
+	}
+
+	d, err := New(n)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for _, v := range numbers {
+		d.WriteUint32(v)
+	}
+	d.Close()
+
+	for k, want := range numbers {
+		got, err := d.ReadUint322(k)
+		if got != want || err != nil {
+			t.Errorf("k: %d - got: %v, want: %v\n", k, got, want)
+		}
+	}
+}
+
 func TestReadWriteUint64(t *testing.T) {
-	const n = 100
+	const n = 1_000
 
 	numbers := make([]uint64, n)
 
@@ -187,8 +247,38 @@ func TestReadWriteUint64(t *testing.T) {
 	}
 }
 
+func TestReadWriteUint642(t *testing.T) {
+	const n = 1_000
+
+	numbers := make([]uint64, n)
+
+	r := rand.New(rand.NewSource(15))
+	zipf := rand.NewZipf(r, 1.15, 1, math.MaxUint64)
+
+	for i := range numbers {
+		numbers[i] = zipf.Uint64()
+	}
+
+	d, err := New(n)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for _, v := range numbers {
+		d.WriteUint64(v)
+	}
+	d.Close()
+
+	for k, want := range numbers {
+		got, err := d.ReadUint642(k)
+		if got != want || err != nil {
+			t.Errorf("k: %d - got: %v, want: %v\n", k, got, want)
+		}
+	}
+}
+
 func TestWriteBoolList(t *testing.T) {
-	const n = 100
+	const n = 1_000
 	numbers := make([]bool, n)
 
 	rand.Seed(15)
@@ -215,7 +305,7 @@ func TestWriteBoolList(t *testing.T) {
 }
 
 func TestWriteUint8List(t *testing.T) {
-	const n = 100
+	const n = 1_000
 	numbers := make([]uint8, n)
 
 	r := rand.New(rand.NewSource(15))
@@ -242,7 +332,7 @@ func TestWriteUint8List(t *testing.T) {
 }
 
 func TestWriteUint16List(t *testing.T) {
-	const n = 100
+	const n = 1_000
 	numbers := make([]uint16, n)
 
 	r := rand.New(rand.NewSource(15))
@@ -269,7 +359,7 @@ func TestWriteUint16List(t *testing.T) {
 }
 
 func TestWriteUint32List(t *testing.T) {
-	const n = 100
+	const n = 1_000
 	numbers := make([]uint32, n)
 
 	r := rand.New(rand.NewSource(15))
@@ -296,7 +386,7 @@ func TestWriteUint32List(t *testing.T) {
 }
 
 func TestWriteUint64List(t *testing.T) {
-	const n = 100
+	const n = 1_000
 	numbers := make([]uint64, n)
 
 	r := rand.New(rand.NewSource(15))
@@ -323,7 +413,7 @@ func TestWriteUint64List(t *testing.T) {
 }
 
 func TestReadWriteInt8(t *testing.T) {
-	const n = 100
+	const n = 1_000
 
 	numbers := make([]int8, n)
 
@@ -351,14 +441,9 @@ func TestReadWriteInt8(t *testing.T) {
 }
 
 func TestReadWriteInt16(t *testing.T) { // TODO: errors
-	const n = 100
+	const n = 1_000
 
 	numbers := make([]int16, n)
-
-	// rand.Seed(15)
-	// for i := range numbers {
-	// 	numbers[i] = int16(rand.Int31n(math.MaxInt16+1) + math.MinInt16) // aanpassen
-	// }
 
 	r := rand.New(rand.NewSource(15))
 	zipf := rand.NewZipf(r, 1.15, 1, math.MaxInt16)
@@ -376,9 +461,8 @@ func TestReadWriteInt16(t *testing.T) { // TODO: errors
 		t.Fatal(err)
 	}
 
-	for i, v := range numbers {
+	for _, v := range numbers {
 		d.WriteInt16(v)
-		_ = i
 	}
 	d.Close()
 
@@ -394,11 +478,6 @@ func TestReadWriteInt32(t *testing.T) { // TODO: errors
 	const n = 1_000
 
 	numbers := make([]int32, n)
-
-	// rand.Seed(15)
-	// for i := range numbers { // Best ook zipf gebruiken!!!
-	// 	numbers[i] = int32(rand.Int63n(math.MaxInt32+1) + math.MinInt32)
-	// }
 
 	r := rand.New(rand.NewSource(15))
 	zipf := rand.NewZipf(r, 1.15, 1, math.MaxInt32)
@@ -430,13 +509,19 @@ func TestReadWriteInt32(t *testing.T) { // TODO: errors
 }
 
 func TestReadWriteInt64(t *testing.T) {
-	const n = 100
+	const n = 1_000
 
 	numbers := make([]int64, n)
 
+	r := rand.New(rand.NewSource(15))
+	zipf := rand.NewZipf(r, 1.15, 1, math.MaxInt64)
 	rand.Seed(15)
+
 	for i := range numbers {
-		numbers[i] = rand.Int63n(math.MaxInt64) + math.MinInt64
+		numbers[i] = int64(zipf.Uint64())
+		if rand.Int31n(2) == 1 {
+			numbers[i] *= -1
+		}
 	}
 
 	d, err := New(n)
@@ -457,26 +542,49 @@ func TestReadWriteInt64(t *testing.T) {
 	}
 }
 
+// func TestReadWriteFloat32Size(t *testing.T) {
+// 	const n = 1_000
+
+// 	d, err := New(n)
+// 	if err != nil {
+// 		t.Fatal(err)
+// 	}
+
+// 	numbers := make([]float32, n)
+
+// 	for i := 0; i < n; i++ {
+// 		numbers[i] = float32(i * 10)
+// 		d.WriteFloat32(numbers[i])
+// 	}
+// 	d.Close()
+
+// 	for k, want := range numbers {
+// 		got, err := d.ReadFloat32(k)
+// 		if got != want || err != nil {
+// 			t.Errorf("k: %d - got: %v, want: %v\n", k, got, want)
+// 		}
+// 	}
+// }
+
 func TestReadWriteFloat32(t *testing.T) {
-	const n = 100
-
-	numbers := make([]float32, n)
-
-	rand.Seed(15)
-	for i := range numbers {
-		numbers[i] = rand.Float32()
-		if rand.Int31n(2) == 1 {
-			numbers[i] *= -1
-		}
-	}
+	const n = 1_000
 
 	d, err := New(n)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	for _, v := range numbers {
-		d.WriteFloat32(v)
+	numbers := make([]float32, n)
+	r := rand.New(rand.NewSource(15))
+	zipf := rand.NewZipf(r, 1.15, 1, math.MaxUint64)
+	rand.Seed(15)
+
+	for i := 0; i < n; i++ {
+		numbers[i] = float32(zipf.Uint64())
+		if rand.Int31n(2) == 1 {
+			numbers[i] *= -1
+		}
+		d.WriteFloat32(numbers[i])
 	}
 	d.Close()
 
@@ -488,26 +596,55 @@ func TestReadWriteFloat32(t *testing.T) {
 	}
 }
 
-func TestReadWriteFloat64(t *testing.T) {
-	const n = 100
-
-	numbers := make([]float64, n)
-
-	rand.Seed(15)
-	for i := range numbers {
-		numbers[i] = rand.Float64()
-		if rand.Int31n(2) == 1 {
-			numbers[i] *= -1
-		}
-	}
+func TestReadWriteFloat322(t *testing.T) {
+	const n = 1_000
 
 	d, err := New(n)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	for _, v := range numbers {
-		d.WriteFloat64(v)
+	numbers := make([]float32, n)
+	r := rand.New(rand.NewSource(15))
+	zipf := rand.NewZipf(r, 1.15, 1, math.MaxUint64)
+	rand.Seed(15)
+
+	for i := 0; i < n; i++ {
+		numbers[i] = float32(zipf.Uint64())
+		if rand.Int31n(2) == 1 {
+			numbers[i] *= -1
+		}
+		d.WriteFloat32(numbers[i])
+	}
+	d.Close()
+
+	for k, want := range numbers {
+		got, err := d.ReadFloat322(k)
+		if got != want || err != nil {
+			t.Errorf("k: %d - got: %v, want: %v\n", k, got, want)
+		}
+	}
+}
+
+func TestReadWriteFloat64(t *testing.T) {
+	const n = 1_000
+
+	d, err := New(n)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	numbers := make([]float64, n)
+	r := rand.New(rand.NewSource(15))
+	zipf := rand.NewZipf(r, 1.15, 1, math.MaxUint64)
+	rand.Seed(15)
+
+	for i := 0; i < n; i++ {
+		numbers[i] = float64(zipf.Uint64())
+		if rand.Int31n(2) == 1 {
+			numbers[i] *= -1
+		}
+		d.WriteFloat64(numbers[i])
 	}
 	d.Close()
 
@@ -520,22 +657,24 @@ func TestReadWriteFloat64(t *testing.T) {
 }
 
 func TestReadWriteFloat642(t *testing.T) {
-	const n = 100
-
-	numbers := make([]float64, n)
-
-	rand.Seed(15)
-	for i := range numbers {
-		numbers[i] = rand.Float64()
-	}
+	const n = 1_000
 
 	d, err := New(n)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	for _, v := range numbers {
-		d.WriteFloat64(v)
+	numbers := make([]float64, n)
+	r := rand.New(rand.NewSource(15))
+	zipf := rand.NewZipf(r, 1.15, 1, math.MaxUint64)
+	rand.Seed(15)
+
+	for i := 0; i < n; i++ {
+		numbers[i] = float64(zipf.Uint64())
+		if rand.Int31n(2) == 1 {
+			numbers[i] *= -1
+		}
+		d.WriteFloat64(numbers[i])
 	}
 	d.Close()
 
@@ -547,18 +686,18 @@ func TestReadWriteFloat642(t *testing.T) {
 	}
 }
 
-func TestReadWriteDate(t *testing.T) {
-	const n = 100
+func TestReadWriteDateTime(t *testing.T) {
+	const n = 1_000
 
-	dates := make([]time.Time, n)
+	dateTimes := make([]time.Time, n)
 
 	rand.Seed(15)
-	for i := range dates {
+	for i := range dateTimes {
 		s := rand.Int63n(math.MaxInt32)
 		if rand.Int31n(2) == 1 {
 			s = -s
 		}
-		dates[i] = time.Unix(s, rand.Int63n(1_000_000_000))
+		dateTimes[i] = time.Unix(s, rand.Int63n(1_000_000_000))
 	}
 
 	d, err := New(n)
@@ -566,13 +705,13 @@ func TestReadWriteDate(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	for _, v := range dates {
-		d.WriteDate(v)
+	for _, v := range dateTimes {
+		d.WriteDateTime(v)
 	}
 	d.Close()
 
-	for k, want := range dates {
-		got, err := d.ReadDate(k)
+	for k, want := range dateTimes {
+		got, err := d.ReadDateTime(k)
 		if got != want || err != nil {
 			t.Errorf("k: %d - got: %v, want: %v\n", k, got, want)
 		}
@@ -580,14 +719,18 @@ func TestReadWriteDate(t *testing.T) {
 }
 
 func TestWriteInt8List(t *testing.T) {
-	const n = 100
+	const n = 1_000
 	numbers := make([]int8, n)
 
 	r := rand.New(rand.NewSource(15))
 	zipf := rand.NewZipf(r, 1.15, 1, math.MaxInt8)
+	rand.Seed(15)
 
 	for i := range numbers {
 		numbers[i] = int8(zipf.Uint64())
+		if rand.Int31n(2) == 1 {
+			numbers[i] *= -1
+		}
 	}
 
 	d, err := New(n)
@@ -607,14 +750,18 @@ func TestWriteInt8List(t *testing.T) {
 }
 
 func TestWriteInt16List(t *testing.T) {
-	const n = 100
+	const n = 1_000
 	numbers := make([]int16, n)
 
 	r := rand.New(rand.NewSource(15))
 	zipf := rand.NewZipf(r, 1.15, 1, math.MaxInt16)
+	rand.Seed(15)
 
 	for i := range numbers {
 		numbers[i] = int16(zipf.Uint64())
+		if rand.Int31n(2) == 1 {
+			numbers[i] *= -1
+		}
 	}
 
 	d, err := New(n)
@@ -634,14 +781,18 @@ func TestWriteInt16List(t *testing.T) {
 }
 
 func TestWriteInt32List(t *testing.T) {
-	const n = 100
+	const n = 1_000
 	numbers := make([]int32, n)
 
 	r := rand.New(rand.NewSource(15))
 	zipf := rand.NewZipf(r, 1.15, 1, math.MaxInt32)
+	rand.Seed(15)
 
 	for i := range numbers {
 		numbers[i] = int32(zipf.Uint64())
+		if rand.Int31n(2) == 1 {
+			numbers[i] *= -1
+		}
 	}
 
 	d, err := New(n)
@@ -661,14 +812,18 @@ func TestWriteInt32List(t *testing.T) {
 }
 
 func TestWriteInt64List(t *testing.T) {
-	const n = 100
+	const n = 1_000
 	numbers := make([]int64, n)
 
 	r := rand.New(rand.NewSource(15))
-	zipf := rand.NewZipf(r, 1.15, 1, math.MaxInt64)
+	zipf := rand.NewZipf(r, 1.15, 1, math.MaxInt8)
+	rand.Seed(15)
 
 	for i := range numbers {
 		numbers[i] = int64(zipf.Uint64())
+		if rand.Int31n(2) == 1 {
+			numbers[i] *= -1
+		}
 	}
 
 	d, err := New(n)
@@ -688,13 +843,18 @@ func TestWriteInt64List(t *testing.T) {
 }
 
 func TestWriteFloat32List(t *testing.T) {
-	const n = 100
+	const n = 1_000
 
 	numbers := make([]float32, n)
-
+	r := rand.New(rand.NewSource(15))
+	zipf := rand.NewZipf(r, 1.15, 1, math.MaxUint64)
 	rand.Seed(15)
-	for i := range numbers {
-		numbers[i] = rand.Float32()
+
+	for i := 0; i < n; i++ {
+		numbers[i] = float32(zipf.Uint64())
+		if rand.Int31n(2) == 1 {
+			numbers[i] *= -1
+		}
 	}
 
 	d, err := New(n)
@@ -713,14 +873,18 @@ func TestWriteFloat32List(t *testing.T) {
 }
 
 func TestWriteFloat64List(t *testing.T) {
-	const n = 100
+	const n = 1_000
 
 	numbers := make([]float64, n)
-	values := make([]float64, n)
-
+	r := rand.New(rand.NewSource(15))
+	zipf := rand.NewZipf(r, 1.15, 1, math.MaxUint64)
 	rand.Seed(15)
-	for i := range numbers {
-		numbers[i] = rand.Float64()
+
+	for i := 0; i < n; i++ {
+		numbers[i] = float64(zipf.Uint64())
+		if rand.Int31n(2) == 1 {
+			numbers[i] *= -1
+		}
 	}
 
 	d, err := New(n)
@@ -730,8 +894,6 @@ func TestWriteFloat64List(t *testing.T) {
 	d.WriteFloat64List(numbers)
 	d.Close()
 
-	d.ReadFloat64List(values)
-
 	for k, want := range numbers {
 		got, err := d.ReadFloat64(k)
 		if err != nil || got != want {
@@ -740,13 +902,17 @@ func TestWriteFloat64List(t *testing.T) {
 	}
 }
 
-func TestWriteDateList(t *testing.T) {
-	const n = 100
-	dates := make([]time.Time, n)
+func TestWriteDateTimeList(t *testing.T) {
+	const n = 1_000
+	dateTimes := make([]time.Time, n)
 
 	rand.Seed(15)
-	for i := range dates {
-		dates[i] = time.Unix(rand.Int63n(math.MaxInt64), 0)
+	for i := range dateTimes {
+		s := rand.Int63n(math.MaxInt32)
+		if rand.Int31n(2) == 1 {
+			s = -s
+		}
+		dateTimes[i] = time.Unix(s, rand.Int63n(1_000_000_000))
 	}
 
 	d, err := New(n)
@@ -754,11 +920,11 @@ func TestWriteDateList(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	d.WriteDateList(dates)
+	d.WriteDateTimeList(dateTimes)
 	d.Close()
 
-	for k, want := range dates {
-		got, err := d.ReadDate(k)
+	for k, want := range dateTimes {
+		got, err := d.ReadDateTime(k)
 		if err != nil || got != want {
 			t.Errorf("k: %d - got: %v, want: %v, err: %s\n", k, got, want, err)
 		}
@@ -766,7 +932,7 @@ func TestWriteDateList(t *testing.T) {
 }
 
 func TestReadBoolList(t *testing.T) {
-	const n = 100
+	const n = 1_000
 	numbers := make([]bool, n)
 	values := make([]bool, n)
 
@@ -793,7 +959,7 @@ func TestReadBoolList(t *testing.T) {
 }
 
 func TestReadUint8List(t *testing.T) {
-	const n = 100
+	const n = 1_000
 	numbers := make([]uint8, n)
 	values := make([]uint8, n)
 
@@ -821,7 +987,7 @@ func TestReadUint8List(t *testing.T) {
 }
 
 func TestReadUint16List(t *testing.T) {
-	const n = 100
+	const n = 1_000
 	numbers := make([]uint16, n)
 	values := make([]uint16, n)
 
@@ -849,7 +1015,7 @@ func TestReadUint16List(t *testing.T) {
 }
 
 func TestReadUint32List(t *testing.T) {
-	const n = 100
+	const n = 1_000
 	numbers := make([]uint32, n)
 	values := make([]uint32, n)
 
@@ -876,8 +1042,8 @@ func TestReadUint32List(t *testing.T) {
 	}
 }
 
-func TestReadList(t *testing.T) { // TODO: Fout
-	const n = 100
+func TestReadList(t *testing.T) {
+	const n = 1_000
 	numbers := make([]uint64, n)
 	values := make([]uint64, n)
 
@@ -899,8 +1065,8 @@ func TestReadList(t *testing.T) { // TODO: Fout
 	}
 }
 
-func TestRead64List(t *testing.T) { // TODO: Fout
-	const n = 100
+func TestRead64List(t *testing.T) {
+	const n = 1_000
 	numbers := make([]uint64, n)
 	values := make([]uint64, n)
 
@@ -923,7 +1089,7 @@ func TestRead64List(t *testing.T) { // TODO: Fout
 }
 
 // func TestReadUint64List(t *testing.T) { // TODO: Fout
-// 	const n = 100
+// 	const n = 1_000
 // 	numbers := make([]uint64, n)
 // 	values := make([]uint64, n)
 
@@ -946,15 +1112,19 @@ func TestRead64List(t *testing.T) { // TODO: Fout
 // }
 
 func TestReadInt8List(t *testing.T) {
-	const n = 100
+	const n = 1_000
 	numbers := make([]int8, n)
 	values := make([]int8, n)
 
 	r := rand.New(rand.NewSource(15))
-	zipf := rand.NewZipf(r, 1.15, 1, math.MaxUint8)
+	zipf := rand.NewZipf(r, 1.15, 1, math.MaxInt8)
+	rand.Seed(15)
 
 	for i := range numbers {
 		numbers[i] = int8(zipf.Uint64())
+		if rand.Int31n(2) == 1 {
+			numbers[i] *= -1
+		}
 	}
 
 	d, err := New(n)
@@ -974,7 +1144,7 @@ func TestReadInt8List(t *testing.T) {
 }
 
 func TestReadInt16List(t *testing.T) { // TODO: errors
-	const n = 100
+	const n = 1_000
 	numbers := make([]int16, n)
 	values := make([]int16, n)
 
@@ -1005,8 +1175,8 @@ func TestReadInt16List(t *testing.T) { // TODO: errors
 	}
 }
 
-func TestReadInt32List(t *testing.T) { // TODO: errors
-	const n = 100
+func TestReadInt32List(t *testing.T) {
+	const n = 1_000
 	numbers := make([]int32, n)
 	values := make([]int32, n)
 
@@ -1015,6 +1185,9 @@ func TestReadInt32List(t *testing.T) { // TODO: errors
 
 	for i := range numbers {
 		numbers[i] = int32(zipf.Uint64())
+		if rand.Int31n(2) == 1 {
+			numbers[i] *= -1
+		}
 	}
 
 	d, err := New(n)
@@ -1033,8 +1206,8 @@ func TestReadInt32List(t *testing.T) { // TODO: errors
 	}
 }
 
-func TestReadInt64List(t *testing.T) { // TODO: errors
-	const n = 100
+func TestReadInt64List(t *testing.T) {
+	const n = 1_000
 	numbers := make([]int64, n)
 	values := make([]int64, n)
 
@@ -1054,6 +1227,7 @@ func TestReadInt64List(t *testing.T) { // TODO: errors
 		}
 		d.WriteInt64(numbers[i])
 	}
+	d.Close()
 
 	d.ReadInt64List(values)
 
@@ -1066,12 +1240,19 @@ func TestReadInt64List(t *testing.T) { // TODO: errors
 }
 
 func TestReadFloat32List(t *testing.T) {
-	const n = 100
+	const n = 1_000
 	numbers := make([]float32, n)
+	values := make([]float32, n)
 
+	r := rand.New(rand.NewSource(15))
+	zipf := rand.NewZipf(r, 1.15, 1, math.MaxUint64)
 	rand.Seed(15)
-	for i := range numbers {
-		numbers[i] = rand.Float32()
+
+	for i := 0; i < n; i++ {
+		numbers[i] = float32(zipf.Uint64())
+		if rand.Int31n(2) == 1 {
+			numbers[i] *= -1
+		}
 	}
 
 	d, err := New(n)
@@ -1079,11 +1260,16 @@ func TestReadFloat32List(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	d.WriteFloat32List(numbers)
+	// d.WriteFloat32List(numbers)
+	for _, v := range numbers {
+		d.WriteFloat32(v)
+	}
 	d.Close()
 
+	d.ReadFloat32List(values)
+
 	for k, want := range numbers {
-		got, err := d.ReadFloat32(k)
+		got := values[k]
 		if got != want || err != nil {
 			t.Errorf("k: %d - got: %f, want: %f\n", k, got, want)
 		}
@@ -1091,12 +1277,19 @@ func TestReadFloat32List(t *testing.T) {
 }
 
 func TestReadFloat64List(t *testing.T) {
-	const n = 100
+	const n = 1_000
 	numbers := make([]float64, n)
+	values := make([]float64, n)
 
+	r := rand.New(rand.NewSource(15))
+	zipf := rand.NewZipf(r, 1.15, 1, math.MaxUint64)
 	rand.Seed(15)
-	for i := range numbers {
-		numbers[i] = rand.Float64()
+
+	for i := 0; i < n; i++ {
+		numbers[i] = float64(zipf.Uint64())
+		if rand.Int31n(2) == 1 {
+			numbers[i] *= -1
+		}
 	}
 
 	d, err := New(n)
@@ -1107,43 +1300,43 @@ func TestReadFloat64List(t *testing.T) {
 	d.WriteFloat64List(numbers)
 	d.Close()
 
+	d.ReadFloat64List(values)
+
 	for k, want := range numbers {
-		got, err := d.ReadFloat64(k)
+		got := values[k]
 		if got != want || err != nil {
 			t.Errorf("k: %d - got: %f, want: %f\n", k, got, want)
 		}
 	}
 }
 
-func TestReadDateList(t *testing.T) { // TODO
-	const n = 100
-	numbers := make([]int64, n)
-	values := make([]int64, n)
-
-	r := rand.New(rand.NewSource(15))
-	zipf := rand.NewZipf(r, 1.15, 1, math.MaxInt64)
-	rand.Seed(15)
+func TestReadDateTimeList(t *testing.T) {
+	const n = 1_000
+	dateTimes := make([]time.Time, n)
+	values := make([]time.Time, n)
 
 	d, err := New(n)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	for i := range numbers {
-		numbers[i] = int64(zipf.Uint64())
+	rand.Seed(15)
+	for i := range dateTimes {
+		s := rand.Int63n(math.MaxInt32)
 		if rand.Int31n(2) == 1 {
-			numbers[i] *= -1
+			s = -s
 		}
-		d.WriteInt64(numbers[i])
+		dateTimes[i] = time.Unix(s, rand.Int63n(1_000_000_000))
+		d.WriteDateTime(dateTimes[i])
 	}
 	d.Close()
 
-	d.ReadInt64List(values)
+	d.ReadDateTimeList(values)
 
-	for k, want := range numbers {
+	for k, want := range dateTimes {
 		got := values[k]
 		if got != want {
-			t.Errorf("k: %d - got: %d, want: %d\n", k, got, want)
+			t.Errorf("k: %d - got: %v, want: %v\n", k, got, want)
 		}
 	}
 }
@@ -1177,7 +1370,7 @@ func TestScan(t *testing.T) {
 }
 
 func TestSearch(t *testing.T) {
-	const n = 100
+	const n = 1_000
 
 	r := rand.New(rand.NewSource(15))
 	zipf := rand.NewZipf(r, 1.15, 1, math.MaxUint64)
@@ -1206,11 +1399,31 @@ func TestSearch(t *testing.T) {
 		if gotIdx != wantIdx {
 			t.Errorf("gotIdx: %d, wantIdx: %d\n", gotIdx, wantIdx)
 		}
-
 	}
 }
 
-func BenchmarkWriteBool(b *testing.B) { // 5.23 ns/op   0 B/op   0 allocs/op
+func BenchmarkTestFrom(b *testing.B) { // 8.42 ns/op   5400 B/op   53 allocs/op
+	const n = 1_000
+
+	numbers := make([]uint64, n)
+
+	r := rand.New(rand.NewSource(15))
+	zipf := rand.NewZipf(r, 1.15, 1, math.MaxUint64)
+
+	for i := range numbers {
+		numbers[i] = zipf.Uint64()
+	}
+
+	b.ReportAllocs()
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		d := From(numbers)
+		d.Reset()
+	}
+}
+
+func BenchmarkWriteBool(b *testing.B) { // 5.00 ns/op   0 B/op   0 allocs/op
 	const n = 1_000
 
 	numbers := make([]bool, n)
@@ -1266,7 +1479,7 @@ func BenchmarkWriteUint8(b *testing.B) { // 2.20 ns/op   0 B/op   0 allocs/op
 	}
 }
 
-func BenchmarkWriteUint16(b *testing.B) { // 7.66 ns/op   0 B/op   0 allocs/op
+func BenchmarkWriteUint16(b *testing.B) { // 7.42 ns/op   0 B/op   0 allocs/op
 	const n = 1_000
 
 	numbers := make([]uint16, n)
@@ -1429,7 +1642,7 @@ func BenchmarkWriteUint8List(b *testing.B) { // 0.06 ns/op    0 B/op    0 allocs
 	}
 }
 
-func BenchmarkWriteUint16List(b *testing.B) { // 3.97 ns/op    0 B/op    0 allocs/op
+func BenchmarkWriteUint16List(b *testing.B) { // 3.00 ns/op    0 B/op    0 allocs/op
 	const n = 1_000
 
 	numbers := make([]uint16, n)
@@ -1454,7 +1667,7 @@ func BenchmarkWriteUint16List(b *testing.B) { // 3.97 ns/op    0 B/op    0 alloc
 	}
 }
 
-func BenchmarkWriteUint32List(b *testing.B) { // 4.56 ns/op    0 B/op    0 allocs/op
+func BenchmarkWriteUint32List(b *testing.B) { // 3.86 ns/op    0 B/op    0 allocs/op
 	const n = 1_000
 
 	numbers := make([]uint32, n)
@@ -1479,7 +1692,7 @@ func BenchmarkWriteUint32List(b *testing.B) { // 4.56 ns/op    0 B/op    0 alloc
 	}
 }
 
-func BenchmarkWriteUint64List(b *testing.B) { // 5.33 ns/op    0 B/op    0 allocs/op
+func BenchmarkWriteUint64List(b *testing.B) { // 4.59 ns/op    0 B/op    0 allocs/op
 	const n = 1_000
 
 	numbers := make([]uint64, n)
@@ -1504,7 +1717,7 @@ func BenchmarkWriteUint64List(b *testing.B) { // 5.33 ns/op    0 B/op    0 alloc
 	}
 }
 
-func BenchmarkWriteUvarintList(b *testing.B) { // 6.63 ns/op    0 B/op    0 allocs/op
+func BenchmarkWriteUvarintList(b *testing.B) { // 6.48 ns/op    0 B/op    0 allocs/op
 	const n = 1_000
 
 	numbers := make([]uint64, n)
@@ -1655,14 +1868,46 @@ func BenchmarkWriteInt64(b *testing.B) { // 10.5 ns/op   0 B/op   0 allocs/op
 	}
 }
 
-func BenchmarkWriteFloat32(b *testing.B) { // 15.6 ns/op   0 B/op   0 allocs/op
+// func BenchmarkWriteUvarintList(b *testing.B) { // 6.48 ns/op    0 B/op    0 allocs/op
+// 	const n = 1_000
+
+// 	numbers := make([]int64, n)
+// 	r := rand.New(rand.NewSource(15))
+// 	zipf := rand.NewZipf(r, 1.15, 1, math.MaxInt64)
+
+// 	for i := range numbers {
+// 		numbers[i] = zipf.Uint64()
+// 	}
+
+// 	buf := make([]byte, binary.MaxVarintLen64)
+// 	results := []byte{}
+
+// 	b.ReportAllocs()
+// 	b.ResetTimer()
+
+// 	for i := 0; i < b.N; i++ {
+// 		for _, x := range numbers {
+// 			n := binary.PutVarint(buf, x)
+// 			results = append(results, buf[:n]...)
+// 		}
+// 		results = results[:0]
+// 	}
+// }
+
+func BenchmarkWriteFloat32(b *testing.B) { // 14.9 ns/op   0 B/op   0 allocs/op
 	const n = 1_000
 
 	numbers := make([]float32, n)
 
+	r := rand.New(rand.NewSource(15))
+	zipf := rand.NewZipf(r, 1.15, 1, math.MaxUint64)
 	rand.Seed(15)
-	for i := range numbers {
-		numbers[i] = rand.Float32() - 1
+
+	for i := 0; i < n; i++ {
+		numbers[i] = float32(zipf.Uint64())
+		if rand.Int31n(2) == 1 {
+			numbers[i] *= -1
+		}
 	}
 
 	d, err := New(n)
@@ -1682,13 +1927,19 @@ func BenchmarkWriteFloat32(b *testing.B) { // 15.6 ns/op   0 B/op   0 allocs/op
 }
 
 func BenchmarkWriteFloat64(b *testing.B) { // 28.3 ns/op   0 B/op   0 allocs/op
-	const n = 1_000
+	const n = 1_000 //                        13.6 ns/op   0 B/op   0 allocs/op
 
 	numbers := make([]float64, n)
 
+	r := rand.New(rand.NewSource(15))
+	zipf := rand.NewZipf(r, 1.15, 1, math.MaxUint64)
 	rand.Seed(15)
-	for i := range numbers {
-		numbers[i] = rand.NormFloat64()
+
+	for i := 0; i < n; i++ {
+		numbers[i] = float64(zipf.Uint64())
+		if rand.Int31n(2) == 1 {
+			numbers[i] *= -1
+		}
 	}
 
 	d, err := New(n)
@@ -1707,14 +1958,18 @@ func BenchmarkWriteFloat64(b *testing.B) { // 28.3 ns/op   0 B/op   0 allocs/op
 	}
 }
 
-func BenchmarkWriteDate(b *testing.B) { // 33.1 ns/op    0 B/op    0 allocs/op
+func BenchmarkWriteDateTime(b *testing.B) { // 30.7 ns/op    0 B/op    0 allocs/op
 	const n = 1_000
 
-	dates := make([]time.Time, n)
+	dateTimes := make([]time.Time, n)
 
 	rand.Seed(15)
-	for i := range dates {
-		dates[i] = time.Unix(rand.Int63n(math.MaxInt64), 0)
+	for i := 0; i < n; i++ {
+		s := rand.Int63n(math.MaxInt32)
+		if rand.Int31n(2) == 1 {
+			s = -s
+		}
+		dateTimes[i] = time.Unix(s, rand.Int63n(1_000_000_000))
 	}
 
 	d, err := New(n)
@@ -1726,8 +1981,8 @@ func BenchmarkWriteDate(b *testing.B) { // 33.1 ns/op    0 B/op    0 allocs/op
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
-		for _, v := range dates {
-			d.WriteDate(v)
+		for _, v := range dateTimes {
+			d.WriteDateTime(v)
 		}
 		d.Reset()
 	}
@@ -1880,13 +2135,19 @@ func BenchmarkWriteVarintList(b *testing.B) { // 7.00 ns/op    0 B/op    0 alloc
 }
 
 func BenchmarkWriteFloat32List(b *testing.B) { // 15.6 ns/op   0 B/op   0 allocs/op
-	const n = 1_000
+	const n = 1_000 //                            6.99 ns/op   0 B/op   0 allocs/op
 
 	numbers := make([]float32, n)
 
+	r := rand.New(rand.NewSource(15))
+	zipf := rand.NewZipf(r, 1.15, 1, math.MaxUint64)
 	rand.Seed(15)
-	for i := range numbers {
-		numbers[i] = rand.Float32() - 1
+
+	for i := 0; i < n; i++ {
+		numbers[i] = float32(zipf.Uint64())
+		if rand.Int31n(2) == 1 {
+			numbers[i] *= -1
+		}
 	}
 
 	d, err := New(n)
@@ -1904,13 +2165,19 @@ func BenchmarkWriteFloat32List(b *testing.B) { // 15.6 ns/op   0 B/op   0 allocs
 }
 
 func BenchmarkWriteFloat64List(b *testing.B) { // 23.8 ns/op   0 B/op   0 allocs/op
-	const n = 1_000
+	const n = 1_000 //                            8.41 ns/op   0 B/op   0 allocs/op
 
 	numbers := make([]float64, n)
 
+	r := rand.New(rand.NewSource(15))
+	zipf := rand.NewZipf(r, 1.15, 1, math.MaxUint64)
 	rand.Seed(15)
-	for i := range numbers {
-		numbers[i] = rand.NormFloat64()
+
+	for i := 0; i < n; i++ {
+		numbers[i] = float64(zipf.Uint64())
+		if rand.Int31n(2) == 1 {
+			numbers[i] *= -1
+		}
 	}
 
 	d, err := New(n)
@@ -1926,14 +2193,18 @@ func BenchmarkWriteFloat64List(b *testing.B) { // 23.8 ns/op   0 B/op   0 allocs
 		d.Reset()
 	}
 }
-func BenchmarkWriteDateList(b *testing.B) { // 31.7 ns/op    0 B/op    0 allocs/op
+func BenchmarkWriteDateTimeList(b *testing.B) { // 29.9 ns/op    0 B/op    0 allocs/op
 	const n = 1_000
 
-	dates := make([]time.Time, n)
+	dateTimes := make([]time.Time, n)
 
 	rand.Seed(15)
-	for i := range dates {
-		dates[i] = time.Unix(rand.Int63n(math.MaxInt64), 0)
+	for i := 0; i < n; i++ {
+		s := rand.Int63n(math.MaxInt32)
+		if rand.Int31n(2) == 1 {
+			s = -s
+		}
+		dateTimes[i] = time.Unix(s, rand.Int63n(1_000_000_000))
 	}
 
 	d, err := New(n)
@@ -1945,9 +2216,7 @@ func BenchmarkWriteDateList(b *testing.B) { // 31.7 ns/op    0 B/op    0 allocs/
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
-		for _, v := range dates {
-			d.WriteDate(v)
-		}
+		d.WriteDateTimeList(dateTimes)
 		d.Reset()
 	}
 }
@@ -2168,7 +2437,7 @@ func BenchmarkReadUint642(b *testing.B) { // 9.59 ns/op    0 B/op    0 allocs/op
 	}
 }
 
-func BenchmarkReadBoolList(b *testing.B) { // 1.23 ns/op    0 B/op    0 allocs/op
+func BenchmarkReadBoolList(b *testing.B) { // 1.18 ns/op    0 B/op    0 allocs/op
 	const n = 1_000
 
 	numbers := make([]bool, n)
@@ -2219,7 +2488,7 @@ func BenchmarkReadUint8List(b *testing.B) { // 0.60 ns/op    0 B/op    0 allocs/
 	}
 }
 
-func BenchmarkReadUint16List(b *testing.B) { // 2.86 ns/op    0 B/op    0 allocs/op
+func BenchmarkReadUint16List(b *testing.B) { // 2.34 ns/op    0 B/op    0 allocs/op
 	const n = 1_000
 
 	numbers := make([]uint16, n)
@@ -2294,7 +2563,7 @@ func BenchmarkReadList(b *testing.B) { // 3.66 ns/op    0 B/op    0 allocs/op
 	}
 }
 
-func BenchmarkRead64List(b *testing.B) { // 3.64 ns/op    0 B/op    0 allocs/op
+func BenchmarkRead64List(b *testing.B) { // 3.61 ns/op    0 B/op    0 allocs/op
 	const n = 1_000
 
 	numbers := make([]uint64, n)
@@ -2317,6 +2586,35 @@ func BenchmarkRead64List(b *testing.B) { // 3.64 ns/op    0 B/op    0 allocs/op
 	for i := 0; i < b.N; i++ {
 		d.Read64List(numbers)
 	}
+}
+
+func BenchmarkReadUvarintList(b *testing.B) { // 8.80 ns/op    0 B/op    0 allocs/op
+	const n = 1_000
+
+	r := rand.New(rand.NewSource(15))
+	zipf := rand.NewZipf(r, 1.15, 1, math.MaxUint64)
+
+	buf := make([]byte, binary.MaxVarintLen64)
+	results := []byte{}
+	for i := 0; i < n; i++ {
+		n := binary.PutUvarint(buf, zipf.Uint64())
+		results = append(results, buf[:n]...)
+	}
+	backup := results
+
+	b.ReportAllocs()
+	b.ResetTimer()
+
+	var v uint64
+	for i := 0; i < b.N; i++ {
+		var l int
+		for len(results) != 0 {
+			v, l = binary.Uvarint(results)
+			results = results[l:]
+		}
+		results = backup
+	}
+	_ = v
 }
 
 // func BenchmarkReadUint64List(b *testing.B) { // 3.66 ns/op    0 B/op    0 allocs/op
@@ -2372,7 +2670,7 @@ func BenchmarkReadInt8(b *testing.B) { // 0.87 ns/op   0 B/op   0 allocs/op
 }
 
 func BenchmarkReadInt16(b *testing.B) { // 12.2 ns/op   0 B/op   0 allocs/op
-	const n = 1_000
+	const n = 1_000 //                     8.28 ns/op   0 B/op   0 allocs/op
 
 	r := rand.New(rand.NewSource(15))
 	zipf := rand.NewZipf(r, 1.15, 1, math.MaxInt16)
@@ -2399,7 +2697,7 @@ func BenchmarkReadInt16(b *testing.B) { // 12.2 ns/op   0 B/op   0 allocs/op
 }
 
 func BenchmarkReadInt32(b *testing.B) { // 15.4 ns/op   0 B/op   0 allocs/op
-	const n = 1_000
+	const n = 1_000 //                     10.9 ns/op   0 B/op   0 allocs/op
 
 	r := rand.New(rand.NewSource(15))
 	zipf := rand.NewZipf(r, 1.15, 1, math.MaxInt32)
@@ -2426,7 +2724,7 @@ func BenchmarkReadInt32(b *testing.B) { // 15.4 ns/op   0 B/op   0 allocs/op
 }
 
 func BenchmarkReadInt64(b *testing.B) { // 15.8 ns/op   0 B/op   0 allocs/op
-	const n = 1_000
+	const n = 1_000 //                     11.9 ns/op   0 B/op   0 allocs/op
 
 	r := rand.New(rand.NewSource(15))
 	zipf := rand.NewZipf(r, 1.15, 1, math.MaxUint64)
@@ -2461,15 +2759,15 @@ func BenchmarkReadFloat32(b *testing.B) { // 18.3 ns/op   0 B/op   0 allocs/op
 	}
 
 	r := rand.New(rand.NewSource(15))
-	zipf := rand.NewZipf(r, 1.15, 1, math.MaxInt64)
+	zipf := rand.NewZipf(r, 1.15, 1, math.MaxUint64)
 	rand.Seed(15)
 
 	for i := 0; i < n; i++ {
-		v := float64(zipf.Uint64())
+		v := float32(zipf.Uint64())
 		if rand.Int31n(2) == 1 {
 			v = -v
 		}
-		d.WriteFloat64(v)
+		d.WriteFloat32(v)
 	}
 	d.Close()
 
@@ -2483,6 +2781,37 @@ func BenchmarkReadFloat32(b *testing.B) { // 18.3 ns/op   0 B/op   0 allocs/op
 	}
 }
 
+func BenchmarkReadFloat322(b *testing.B) { // 18.3 ns/op   0 B/op   0 allocs/op
+	const n = 1_000
+
+	d, err := New(n)
+	if err != nil {
+		b.Fatal(err)
+	}
+
+	r := rand.New(rand.NewSource(15))
+	zipf := rand.NewZipf(r, 1.15, 1, math.MaxUint64)
+	rand.Seed(15)
+
+	for i := 0; i < n; i++ {
+		v := float32(zipf.Uint64())
+		if rand.Int31n(2) == 1 {
+			v = -v
+		}
+		d.WriteFloat32(v)
+	}
+	d.Close()
+
+	b.ReportAllocs()
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		for j := 0; j < n; j++ {
+			d.ReadFloat322(j)
+		}
+	}
+}
+
 func BenchmarkReadFloat64(b *testing.B) { // 19.1 ns/op    0 B/op    0 allocs/op
 	const n = 1_000
 
@@ -2492,7 +2821,7 @@ func BenchmarkReadFloat64(b *testing.B) { // 19.1 ns/op    0 B/op    0 allocs/op
 	}
 
 	r := rand.New(rand.NewSource(15))
-	zipf := rand.NewZipf(r, 1.15, 1, math.MaxInt64)
+	zipf := rand.NewZipf(r, 1.15, 1, math.MaxUint64)
 	rand.Seed(15)
 
 	for i := 0; i < n; i++ {
@@ -2523,7 +2852,7 @@ func BenchmarkReadFloat642(b *testing.B) { // 25.2 ns/op    0 B/op    0 allocs/o
 	}
 
 	r := rand.New(rand.NewSource(15))
-	zipf := rand.NewZipf(r, 1.15, 1, math.MaxInt64)
+	zipf := rand.NewZipf(r, 1.15, 1, math.MaxUint64)
 	rand.Seed(15)
 
 	for i := 0; i < n; i++ {
@@ -2545,7 +2874,7 @@ func BenchmarkReadFloat642(b *testing.B) { // 25.2 ns/op    0 B/op    0 allocs/o
 	}
 }
 
-func BenchmarkReadDate(b *testing.B) { // 61.4 ns/op    0 B/op    0 allocs/op
+func BenchmarkReadDateTime(b *testing.B) { // 68.7 ns/op    0 B/op    0 allocs/op
 	const n = 1_000
 
 	d, err := New(n)
@@ -2555,8 +2884,12 @@ func BenchmarkReadDate(b *testing.B) { // 61.4 ns/op    0 B/op    0 allocs/op
 
 	rand.Seed(15)
 	for i := 0; i < n; i++ {
-		dt := time.Unix(rand.Int63n(math.MaxInt64), 0)
-		d.WriteDate(dt)
+		s := rand.Int63n(math.MaxInt32)
+		if rand.Int31n(2) == 1 {
+			s = -s
+		}
+		dt := time.Unix(s, rand.Int63n(1_000_000_000))
+		d.WriteDateTime(dt)
 	}
 	d.Close()
 
@@ -2565,7 +2898,7 @@ func BenchmarkReadDate(b *testing.B) { // 61.4 ns/op    0 B/op    0 allocs/op
 
 	for i := 0; i < b.N; i++ {
 		for k := 0; k < n; k++ {
-			d.ReadDate(k)
+			d.ReadDateTime(k)
 		}
 	}
 }
@@ -2603,7 +2936,7 @@ func BenchmarkReadInt8List(b *testing.B) { // 1.18 ns/op   0 B/op   0 allocs/op
 }
 
 func BenchmarkReadInt16List(b *testing.B) { // 6.89 ns/op   0 B/op   0 allocs/op
-	const n = 1_000
+	const n = 1_000 //                         6.50 ns/op   0 B/op   0 allocs/op
 
 	numbers := make([]int16, n)
 	r := rand.New(rand.NewSource(15))
@@ -2634,7 +2967,7 @@ func BenchmarkReadInt16List(b *testing.B) { // 6.89 ns/op   0 B/op   0 allocs/op
 }
 
 func BenchmarkReadInt32List(b *testing.B) { // 7.43 ns/op   0 B/op   0 allocs/op
-	const n = 1_000
+	const n = 1_000 //                         7.38 ns/op   0 B/op   0 allocs/op
 
 	numbers := make([]int32, n)
 	r := rand.New(rand.NewSource(15))
@@ -2695,7 +3028,41 @@ func BenchmarkReadInt64List(b *testing.B) { // 7.64 ns/op   0 B/op   0 allocs/op
 	}
 }
 
-func BenchmarkReadFloat32List(b *testing.B) { // 11.4 ns/op   0 B/op   0 allocs/op
+func BenchmarkReadVarintList(b *testing.B) { // 13.0 ns/op    0 B/op    0 allocs/op
+	const n = 1_000
+
+	r := rand.New(rand.NewSource(15))
+	zipf := rand.NewZipf(r, 1.15, 1, math.MaxInt64)
+	rand.Seed(15)
+	results := []byte{}
+	buf := make([]byte, binary.MaxVarintLen64)
+
+	for i := 0; i < n; i++ {
+		x := int64(zipf.Uint64())
+		if rand.Int31n(2) == 1 {
+			x = -x
+		}
+		n := binary.PutVarint(buf, x)
+		results = append(results, buf[:n]...)
+	}
+	backup := results
+
+	b.ReportAllocs()
+	b.ResetTimer()
+
+	var v int64
+	for i := 0; i < b.N; i++ {
+		var l int
+		for len(results) != 0 {
+			v, l = binary.Varint(results)
+			results = results[l:]
+		}
+		results = backup
+	}
+	_ = v
+}
+
+func BenchmarkReadFloat32List(b *testing.B) { // 8.00 ns/op   0 B/op   0 allocs/op
 	const n = 1_000
 
 	d, err := New(n)
@@ -2708,11 +3075,11 @@ func BenchmarkReadFloat32List(b *testing.B) { // 11.4 ns/op   0 B/op   0 allocs/
 	rand.Seed(15)
 
 	for i := 0; i < n; i++ {
-		v := float64(zipf.Uint64())
+		v := float32(zipf.Uint64())
 		if rand.Int31n(2) == 1 {
 			v = -v
 		}
-		d.WriteFloat64(v)
+		d.WriteFloat32(v)
 	}
 	d.Close()
 
@@ -2757,7 +3124,7 @@ func BenchmarkReadFloat64List(b *testing.B) { // 11.4 ns/op    0 B/op    0 alloc
 	}
 }
 
-func BenchmarkReadDateList(b *testing.B) { // 13.0 ns/op    0 B/op    0 allocs/op
+func BenchmarkReadDateTimeList(b *testing.B) { // 29.5 ns/op    0 B/op    0 allocs/op
 	const n = 1_000
 
 	d, err := New(n)
@@ -2767,8 +3134,12 @@ func BenchmarkReadDateList(b *testing.B) { // 13.0 ns/op    0 B/op    0 allocs/o
 
 	rand.Seed(15)
 	for i := 0; i < n; i++ {
-		dt := time.Unix(rand.Int63n(math.MaxInt64), 0) // nanosecs ook invullen
-		d.WriteDate(dt)
+		s := rand.Int63n(math.MaxInt32)
+		if rand.Int31n(2) == 1 {
+			s = -s
+		}
+		dt := time.Unix(s, rand.Int63n(1_000_000_000))
+		d.WriteDateTime(dt)
 	}
 	d.Close()
 
@@ -2778,7 +3149,7 @@ func BenchmarkReadDateList(b *testing.B) { // 13.0 ns/op    0 B/op    0 allocs/o
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
-		d.ReadDateList(numbers)
+		d.ReadDateTimeList(numbers)
 	}
 }
 
@@ -2858,39 +3229,39 @@ func BenchmarkRank(b *testing.B) { // 5.08 ns/op    0 B/op    0 allocs/op    n =
 	}
 }
 
-func TestEncZigzag(t *testing.T) {
-	// for i := -math.MaxInt8; i < math.MaxInt8; i++ {
-	// 	i8 := int8(i)
-	// 	u8 := uint8((i8 << 1) ^ (i8 >> 7))
-	// 	got := int8((u8 >> 1) ^ -(u8 & 1))
-	// 	if got != i8 {
-	// 		t.Error("Kaboem!")
-	// 	}
-	// }
+// func TestEncZigzag(t *testing.T) {
+// for i := -math.MaxInt8; i < math.MaxInt8; i++ {
+// 	i8 := int8(i)
+// 	u8 := uint8((i8 << 1) ^ (i8 >> 7))
+// 	got := int8((u8 >> 1) ^ -(u8 & 1))
+// 	if got != i8 {
+// 		t.Error("Kaboem!")
+// 	}
+// }
 
-	// for i := -math.MaxInt16; i < math.MaxInt16; i++ {
-	// 	i16 := int16(i)
-	// 	i64 := int64(i)
-	// 	u16 := uint16((i16 << 1) ^ (i16 >> 15))
-	// 	u64 := uint64((i16 << 1) ^ (i16 >> 15))
-	// 	u65 := uint64((i64 << 1) ^ (i64 >> 15))
-	// 	got := int16((u16 >> 1) ^ -(u16 & 1))
-	// 	got64 := int16((u64 >> 1) ^ -(u64 & 1))
-	// 	got65 := int16((u65 >> 1) ^ -(u65 & 1))
-	// 	if got != i16 || got64 != i16 || got65 != i16 {
-	// 		t.Errorf("want: %d, got: %d, got64: %d ,got65: %d\n", i16, got, got64, got65)
-	// 	}
-	// }
+// for i := -math.MaxInt16; i < math.MaxInt16; i++ {
+// 	i16 := int16(i)
+// 	i64 := int64(i)
+// 	u16 := uint16((i16 << 1) ^ (i16 >> 15))
+// 	u64 := uint64((i16 << 1) ^ (i16 >> 15))
+// 	u65 := uint64((i64 << 1) ^ (i64 >> 15))
+// 	got := int16((u16 >> 1) ^ -(u16 & 1))
+// 	got64 := int16((u64 >> 1) ^ -(u64 & 1))
+// 	got65 := int16((u65 >> 1) ^ -(u65 & 1))
+// 	if got != i16 || got64 != i16 || got65 != i16 {
+// 		t.Errorf("want: %d, got: %d, got64: %d ,got65: %d\n", i16, got, got64, got65)
+// 	}
+// }
 
-	// for i := -math.MaxInt32; i < math.MaxInt32; i++ {
-	// 	i32 := int32(i)
-	// 	u32 := uint32((i32 << 1) ^ (i32 >> 31))
-	// 	got := int32((u32 >> 1) ^ -(u32 & 1))
-	// 	if got != i32 {
-	// 		t.Error("Kaboem!")
-	// 	}
-	// }
-}
+// for i := -math.MaxInt32; i < math.MaxInt32; i++ {
+// 	i32 := int32(i)
+// 	u32 := uint32((i32 << 1) ^ (i32 >> 31))
+// 	got := int32((u32 >> 1) ^ -(u32 & 1))
+// 	if got != i32 {
+// 		t.Error("Kaboem!")
+// 	}
+// }
+// }
 
 // func TestEncZigzag(t *testing.T) {
 // 	const n = 1_000

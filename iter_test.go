@@ -8,18 +8,17 @@ import (
 
 func TestIterator(t *testing.T) {
 	const n = 10
+
 	numbers := make([]uint64, n)
-
 	r := rand.New(rand.NewSource(15))
-	zipf := rand.NewZipf(r, 1.15, 1, ^uint64(0))
-
+	zipf := rand.NewZipf(r, 1.15, 1, math.MaxUint64)
 	for i := range numbers {
 		numbers[i] = zipf.Uint64()
 	}
 
 	d := From(numbers)
-
 	it := NewIterator(d)
+
 	for i := 0; i < n; i++ {
 		v, err := it.Value(i)
 		if err != nil {

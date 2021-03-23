@@ -53,7 +53,7 @@ func BenchmarkIteratorValue(b *testing.B) { // 13.1 ns/op    0 B/op    0 allocs/
 	}
 
 	for i := 0; i < n; i++ {
-		d.WriteUint64(zipf.Uint64())
+		d.WriteU64(zipf.Uint64())
 	}
 	d.Close()
 
@@ -82,7 +82,7 @@ func BenchmarkIteratorNext(b *testing.B) { // 3.57 ns/op    0 B/op    0 allocs/o
 	}
 
 	for i := 0; i < n; i++ {
-		d.WriteUint64(zipf.Uint64())
+		d.WriteU64(zipf.Uint64())
 	}
 
 	it := NewIterator(d)

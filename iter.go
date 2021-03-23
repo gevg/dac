@@ -13,8 +13,16 @@ type Iterator struct {
 	k     int                 // current index
 }
 
-// NewIterator creates an iterator for the dictionary.
-func NewIterator(d *Dict) Iterator {
+// NewIterator creates an iterator for the given dictionary.
+func NewIterator(d *Dict) Iterator { // TODO: What is the preferred way: NewIterator() or d.Iter()
+	return Iterator{
+		d:     d,
+		ranks: [nStreams64 - 1]int{-1, -1, -1, -1, -1, -1, -1},
+	}
+}
+
+// Iter creates an iterator for the dictionary.
+func (d *Dict) Iter() Iterator {
 	return Iterator{
 		d:     d,
 		ranks: [nStreams64 - 1]int{-1, -1, -1, -1, -1, -1, -1},
@@ -31,7 +39,7 @@ func (it *Iterator) Value(k int) (v uint64, err error) {
 	buf := (*[nStreams64]byte)(unsafe.Pointer(&v))
 	buf[0] = it.d.chunks[0][k]
 
-	var l int
+	var l uint
 	for l < nStreams64-1 && it.d.bit(l, k) {
 		k = it.d.rank(l, k)
 		it.ranks[l] = k
@@ -42,10 +50,10 @@ func (it *Iterator) Value(k int) (v uint64, err error) {
 	return
 }
 
-// Next retuns the next index and value from the dictionary.
+// Next returns the next index and value from the dictionary.
 // If there is not a next value, the ok return value will be false.
 func (it *Iterator) Next() (k int, v uint64, ok bool) {
-	i, k := it.k, it.k // Dit moet transparanter! en sneller!
+	i, k := it.k, it.k // Needs to be more transparent! and faster!
 	if ok = (i < Len(it.d)); !ok {
 		return
 	}
@@ -54,7 +62,7 @@ func (it *Iterator) Next() (k int, v uint64, ok bool) {
 	buf := (*[nStreams64]byte)(unsafe.Pointer(&v))
 	buf[0] = it.d.chunks[0][i]
 
-	var j int
+	var j uint
 	for j < nStreams64-1 && it.d.bit(j, i) {
 		it.ranks[j]++
 		i = it.ranks[j]

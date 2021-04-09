@@ -47,7 +47,7 @@ func New(n ...int) (*Dict, error) {
 	d := Dict{}
 	d.chunks[0] = make([]byte, 0, m)
 	d.bitArr[0] = make([]uint64, 0, (m+63)>>6)
-	d.ranks[0] = make([]int, (m+63)>>9)
+	d.ranks[0] = make([]int, 0, (m+63)>>9)
 
 	return &d, nil
 }
@@ -141,257 +141,8 @@ func (d *Dict) WriteU32(v uint32) int {
 	return d.WriteU64(uint64(v))
 }
 
-// // WriteU64At writes a uint64 value to index k of the dictionary.
-// func (d *Dict) WriteU64At(k int, v uint64) error {
-// 	if k < 0 || len(d.chunks[0]) <= k {
-// 		return errors.New("dac: key k is out of bounds")
-// 	}
-
-// 	d.chunks[0][k] = uint8(v)
-// 	v >>= 8
-
-// 	l := uint(0)
-// 	for d.bit(l, k) {
-// 		if v != 0 { // TODO: Deze if wordt nooit genomen door onze tests!!!
-// 			k = d.rank(l, k)
-// 			d.chunks[l+1][k] = uint8(v)
-// 			v >>= 8
-// 		} else {
-// 			kn := d.rank(l, k)
-// 			d.bitArr[l][k>>6] &^= 1 << (k & 63)
-// 			for i := k>>9 + 1; i < len(d.ranks[l]); i++ {
-// 				d.ranks[l][i] -= 1
-// 			}
-// 			k = kn
-// 			d.chunks[l+1] = append(d.chunks[l+1][:k], d.chunks[l+1][k+1:]...)
-// 		}
-// 		l++
-// 	}
-
-// 	for v != 0 && l < nStreams64-1 {
-// 		d.extendN(l, k) // Kan dit voor de start van de lus? Lijkt anders dubbel!
-// 		d.bitArr[l][k>>6] |= 1 << (k & 63)
-
-// 		for i := k>>9 + 1; i < len(d.ranks[l]); i++ {
-// 			d.ranks[l][i] += 1
-// 		}
-// 		k = d.rank(l, k) // Opgepast, de rank array kan te kort zijn!!!
-// 		d.chunks[l+1] = append(d.chunks[l+1], 0)
-// 		copy(d.chunks[l+1][k+1:], d.chunks[l+1][k:])
-// 		d.chunks[l+1][k] = uint8(v)
-// 		d.extendN(l+1, k) // Check dat bitArr[l][k>>6] zeker bestaat, anders nullen bijvoegen!
-
-// 		v >>= 8
-// 		l++
-// 	}
-
-// 	return nil
-// }
-
-// RemoveAt removes the entry at index k.
-func (d *Dict) RemoveAt(k int) error {
-	if k < 0 || len(d.chunks[0]) <= k {
-		return errors.New("dac: key k is out of bounds")
-	}
-
-	d.chunks[0] = append(d.chunks[0][:k], d.chunks[0][k+1:]...)
-	l := uint(0)
-
-	for l < nStreams64-1 {
-		if !d.bit(l, k) {
-			d.removeIdx(l, k)
-			break
-		}
-		kn := d.rank(l, k)
-		d.removeIdx(l, k)
-		k, l = kn, l+1
-		d.chunks[l] = append(d.chunks[l][:k], d.chunks[l][k+1:]...)
-	}
-
-	return nil
-}
-
-// WriteU64At writes a uint64 value to index k of the dictionary.
-func (d *Dict) WriteU64At(k int, v uint64) error { // TODO: Noem ik dit UpdateAt() en voorzien we ook een InsertAt()???
-	if k < 0 || len(d.chunks[0]) <= k {
-		return errors.New("dac: key k is out of bounds")
-	}
-
-	d.chunks[0][k] = uint8(v)
-	v >>= 8
-
-	l := uint(0)
-	for l < nStreams64-1 && d.bit(l, k) { // Can I split the loop in 2 consecutive loops without an if statement in the loops?
-		if v != 0 { // TODO: Deze if wordt nooit genomen door onze tests!!!
-			k, l = d.rank(l, k), l+1
-			d.chunks[l][k] = uint8(v)
-			v >>= 8
-		} else {
-			kn := d.rank(l, k)
-			d.updateRanks(l, k)
-			d.bitArr[l][k>>6] &^= 1 << (k & 63)
-			k, l = kn, l+1
-			d.chunks[l] = append(d.chunks[l][:k], d.chunks[l][k+1:]...)
-		}
-	}
-
-	for v != 0 && l < nStreams64-1 {
-		d.insertIdx(l, k) // Eerst extendN doen
-
-		d.extendN(l, k)                    // Kan dit voor de start van de lus? Lijkt anders dubbel!
-		d.bitArr[l][k>>6] |= 1 << (k & 63) // TODO: Je moet die invoegen!!!
-
-		for i := k>>9 + 1; i < len(d.ranks[l]); i++ {
-			d.ranks[l][i] += 1
-		}
-		k, l = d.rank(l, k), l+1 // Opgepast, de rank array kan te kort zijn!!!
-
-		d.chunks[l] = append(d.chunks[l], 0)
-		copy(d.chunks[l][k+1:], d.chunks[l][k:])
-		d.chunks[l][k] = uint8(v)
-		d.extendN(l, k) // Check dat bitArr[l][k>>6] zeker bestaat, anders nullen bijvoegen!
-
-		v >>= 8
-	}
-
-	return nil
-}
-
-// insertIdx ...
-func (d *Dict) insertIdx(l uint, k int) {
-	d.extendIdx(l) // Zorg dat indexN steeds 1 bit leeg heeft zodat ik hier later in de functie niet moet op checken!
-
-	// update ranks when a 1-bit is inserted at index (l,k)
-	b := int(d.bitArr[l][k>>6] & (1 << (k & 63)))
-
-	for i := k>>9 + 1; i < len(d.ranks[l]); i++ {
-		bb := int(d.bitArr[l][i<<3] & 1)
-		d.ranks[l][i] += bb - b
-		b = bb
-	}
-
-	// update ranks length // Nog nodig?
-	// n := (len(d.chunks[l]) + 511) >> 9
-	// d.ranks[l] = d.ranks[l][:n]
-
-	// update bitArr when a 1-bit is inserted at index (l,k)
-	k64 := k >> 6
-	k63 := uint64(1) << (k & 63)
-	mask := k63 - 1
-	bt := d.bitArr[l][k64] >> 63
-	d.bitArr[l][k64] = k63 | (d.bitArr[l][k64]<<1)&^mask | d.bitArr[l][k64]&mask
-
-	for i := k64 + 1; i < len(d.bitArr[l]); i++ {
-		tmp := d.bitArr[l][i] >> 63
-		d.bitArr[l][i] = bt | d.bitArr[l][i]<<1
-		bt = tmp
-	}
-
-	// update bitArr length
-	// n = (len(d.chunks[l]) + 63) >> 6
-	// d.bitArr[l] = d.bitArr[l][:n]
-}
-
-// removeIdx ...
-func (d *Dict) removeIdx(l uint, k int) {
-	// update ranks when bit at index (l,k) is removed
-	// b := int(d.bitArr[l][k>>6] & (1 << (k & 63)))
-	b := int(d.bitArr[l][k>>6] >> (k & 63) & 1) // Nog nakijken!
-	for i := k>>9 + 1; i < len(d.ranks[l]); i++ {
-		bb := int(d.bitArr[l][i<<3] & 1)
-		d.ranks[l][i] += bb - b
-		b = bb
-	}
-
-	// update ranks length
-	n := (len(d.chunks[l]) + 511) >> 9
-	d.ranks[l] = d.ranks[l][:n]
-
-	// remove bit at index (l,k) of bitArr and update bitArr[l]
-	var bt uint64
-	start := k >> 6
-	for i := len(d.bitArr[l]) - 1; i >= start+1; i-- {
-		tmp := d.bitArr[l][i] << 63
-		d.bitArr[l][i] = bt | d.bitArr[l][i]>>1
-		bt = tmp
-	}
-	mask := uint64(1<<(k&63) - 1)
-	d.bitArr[l][start] = bt | (d.bitArr[l][start]>>1)&^mask | d.bitArr[l][start]&mask
-
-	// update length of bitArr[l]
-	n = (len(d.chunks[l]) + 63) >> 6
-	d.bitArr[l] = d.bitArr[l][:n]
-}
-
-// updateRanks ...
-func (d *Dict) updateRanks(l uint, k int) {
-	b := int(d.bitArr[l][k>>6] >> (k & 63) & 1)
-	for i := k>>9 + 1; i < len(d.ranks[l]); i++ {
-		d.ranks[l][i] -= b
-	}
-
-	// update ranks length
-	n := (len(d.chunks[l]) + 511) >> 9
-	d.ranks[l] = d.ranks[l][:n]
-}
-
-// removeBit ...
-// func (d *Dict) removeBit(l uint, k int) {
-// 	var b uint64
-// 	start := k >> 6
-// 	for i := len(d.bitArr[l]) - 1; i >= start+1; i-- {
-// 		tmp := d.bitArr[l][i] << 63
-// 		d.bitArr[l][i] = b | d.bitArr[l][i]>>1
-// 		b = tmp
-// 	}
-// 	mask := uint64(1<<(k&63) - 1)
-// 	d.bitArr[l][start] = b | (d.bitArr[l][start]>>1)&^mask | d.bitArr[l][start]&mask
-
-// 	n := (len(d.chunks[l]) + 63) >> 6
-// 	d.bitArr[l] = d.bitArr[l][:n]
-// }
-
-// extendN ...
-func (d *Dict) extendN(l uint, k int) {
-	// Is k eigenlijk wel belangrijk? Moet ik niet gewoon kijken naar len(d.chunks[l])!!!
-	if l < nStreams64-1 { // Is test nodig voor boundschecking. In principe mag je deze functie niet aanroepen met een foutieve l.
-		n := (k+64)>>6 - len(d.bitArr[l])
-		if n > 0 {
-			d.bitArr[l] = append(d.bitArr[l], make([]uint64, n)...)
-		}
-		n = (k+512)>>9 + 1 - len(d.ranks[l])
-		if n > 0 {
-			d.ranks[l] = append(d.ranks[l], make([]int, n)...)
-			if length := len(d.ranks[l]); length > n {
-				for i := length - n - 1; i < length-1; i++ {
-					d.ranks[l][i+1] = d.ranks[l][i]
-				}
-			}
-		}
-	}
-}
-
-// extendN2 ...
-func (d *Dict) extendIdx(l uint) {
-	lenChk := len(d.chunks[l])
-	n := (lenChk+64)>>6 - len(d.bitArr[l])
-	if n > 0 {
-		d.bitArr[l] = append(d.bitArr[l], make([]uint64, n)...)
-	}
-
-	lenArr := len(d.bitArr[l])
-	n = (lenArr+7)>>3 + 1 - len(d.ranks[l])
-	if n > 0 {
-		d.ranks[l] = append(d.ranks[l], make([]int, n)...)
-		if length := len(d.ranks[l]); length > n {
-			for i := length - n - 1; i < length-1; i++ {
-				d.ranks[l][i+1] = d.ranks[l][i]
-			}
-		}
-	}
-}
-
-// WriteU64 writes a uint64 value to the dictionary.
+// WriteU64 writes a uint64 value at the end of the dictionary.
+// A write index is returned.
 func (d *Dict) WriteU64(v uint64) int {
 	d.chunks[0] = append(d.chunks[0], uint8(v))
 	v >>= 8
@@ -409,10 +160,223 @@ func (d *Dict) WriteU64(v uint64) int {
 	return len(d.chunks[0]) - 1
 }
 
+// RemoveAt removes the k-th entry from the dictionary.
+func (d *Dict) RemoveAt(k int) error {
+	if k < 0 || len(d.chunks[0]) <= k {
+		return errors.New("dac: index k is out of bounds")
+	}
+
+	d.chunks[0] = append(d.chunks[0][:k], d.chunks[0][k+1:]...)
+	l := uint(0)
+
+	for l < nStreams64-1 && d.bit(l, k) {
+		kn := d.rank(l, k)
+		d.removeIdx(l, k)
+		k, l = kn, l+1
+		d.chunks[l] = append(d.chunks[l][:k], d.chunks[l][k+1:]...)
+	}
+
+	if l < nStreams64-1 {
+		d.removeIdx(l, k)
+	}
+
+	return nil
+}
+
+// InsertU64At inserts a uint64 value at index k of the dictionary.
+func (d *Dict) InsertU64At(k int, v uint64) error {
+	if k < 0 || len(d.chunks[0]) <= k {
+		return errors.New("dac: index k is out of bounds")
+	}
+
+	d.chunks[0] = append(d.chunks[0], 0)
+	copy(d.chunks[0][k+1:], d.chunks[0][k:])
+	d.chunks[0][k] = uint8(v)
+	v >>= 8
+
+	l := uint(0)
+	for v != 0 && l < nStreams64-1 {
+		d.insertIdx(l, k, 1)
+		k, l = d.rank(l, k), l+1
+		d.chunks[l] = append(d.chunks[l], 0)
+		copy(d.chunks[l][k+1:], d.chunks[l][k:])
+		d.chunks[l][k] = uint8(v)
+		v >>= 8
+	}
+
+	if l < nStreams64-1 {
+		d.insertIdx(l, k, 0)
+	}
+
+	return nil
+}
+
+// UpdateU64At updates a uint64 value at index k of the dictionary.
+func (d *Dict) UpdateU64At(k int, v uint64) error {
+	if k < 0 || len(d.chunks[0]) <= k {
+		return errors.New("dac: index k is out of bounds")
+	}
+
+	d.chunks[0][k] = uint8(v)
+	v >>= 8
+	l := uint(0)
+
+	// v!=0 and there exist remnants of the original number
+	for v != 0 && l < nStreams64-1 && d.bit(l, k) { // Op voorhand isPresent definiëren => sneller
+		k, l = d.rank(l, k), l+1
+		d.chunks[l][k] = uint8(v)
+		v >>= 8
+	}
+
+	// v==0, but still remnants of the original number
+	if l < nStreams64-1 && d.bit(l, k) {
+		kn := d.rank(l, k)
+		d.decrementIdx(l, k)
+		k, l = kn, l+1
+		d.chunks[l] = append(d.chunks[l][:k], d.chunks[l][k+1:]...)
+
+		for l < nStreams64-1 && d.bit(l, k) {
+			kn = d.rank(l, k)
+			d.removeIdx(l, k)
+			k, l = kn, l+1
+			d.chunks[l] = append(d.chunks[l][:k], d.chunks[l][k+1:]...)
+		}
+
+		if l < nStreams64-1 {
+			d.removeIdx(l, k)
+		}
+		return nil
+	}
+
+	// v!=0 but no more remnants of original number
+	if v != 0 && l < nStreams64-1 {
+		d.incrementIdx(l, k)
+		k, l = d.rank(l, k), l+1
+		d.chunks[l] = append(d.chunks[l], 0)
+		copy(d.chunks[l][k+1:], d.chunks[l][k:])
+		d.chunks[l][k] = uint8(v)
+		v >>= 8
+
+		for v != 0 && l < nStreams64-1 {
+			d.insertIdx(l, k, 1)
+			k, l = d.rank(l, k), l+1
+			d.chunks[l] = append(d.chunks[l], 0)
+			copy(d.chunks[l][k+1:], d.chunks[l][k:])
+			d.chunks[l][k] = uint8(v)
+			v >>= 8
+		}
+
+		if l < nStreams64-1 {
+			d.insertIdx(l, k, 0)
+		}
+		return nil
+	}
+
+	return nil
+}
+
+// insertIdx inserts index data for the k-th value at level l. This entails
+// updating the length of the index arrays, the insertion of the presence bit
+// in bitArr[l] and updates to the ranks[l] array. It is assumed that the
+// chunks[l][k] byte is inserted before calling this function.
+func (d *Dict) insertIdx(l uint, k int, v uint64) {
+	// extend d.ranks[l] if needed
+	if lRanks := len(d.ranks[l]); (len(d.chunks[l])+511)>>9 > lRanks {
+		d.ranks[l] = append(d.ranks[l], 0)
+		if lRanks != 0 {
+			sum := d.ranks[l][lRanks-1]
+			for i := (lRanks - 1) << 3; i < lRanks<<3; i++ {
+				sum += bits.OnesCount64(d.bitArr[l][i])
+			}
+			d.ranks[l][lRanks] = sum
+		}
+	}
+
+	// update d.ranks[l]
+	b := int(v)
+	for i := k>>9 + 1; i < len(d.ranks[l]); i++ {
+		bb := int(d.bitArr[l][i<<3-1] >> 63)
+		d.ranks[l][i] += b - bb
+	}
+
+	// extend d.bitArr[l] if needed
+	if (len(d.chunks[l])+63)>>6 > len(d.bitArr[l]) {
+		d.bitArr[l] = append(d.bitArr[l], 0)
+	}
+
+	// update d.bitArr[l]
+	k64 := k >> 6
+	k63 := k & 63
+	mask := uint64(1)<<k63 - 1
+	overflow := d.bitArr[l][k64] >> 63
+	d.bitArr[l][k64] = v<<k63 | (d.bitArr[l][k64]&^mask)<<1 | d.bitArr[l][k64]&mask
+
+	for i := k64 + 1; i < len(d.bitArr[l]); i++ {
+		tmp := d.bitArr[l][i] >> 63
+		d.bitArr[l][i] = overflow | d.bitArr[l][i]<<1
+		overflow = tmp
+	}
+}
+
+// removeIdx removes index data for the k-th value at level l. This entails
+// the removal from the presence bit in bitArr[l], the update of the ranks[l]
+// values and checks whether the lengths of the index arrays can be shortened.
+// It is assumed that the chunks[l][k] byte has already been removed.
+func (d *Dict) removeIdx(l uint, k int) {
+	// update ranks contents
+	b := int(d.bitArr[l][k>>6] >> (k & 63) & 1)
+	for i := k>>9 + 1; i < len(d.ranks[l]); i++ {
+		bb := int(d.bitArr[l][i<<3] & 1)
+		d.ranks[l][i] += bb - b
+		b = bb
+	}
+
+	// shorten ranks length if possible
+	n := (len(d.chunks[l]) + 511) >> 9
+	d.ranks[l] = d.ranks[l][:n]
+
+	// remove bit from bitArr
+	var bt uint64
+	k64 := k >> 6
+	for i := len(d.bitArr[l]) - 1; i > k64; i-- {
+		tmp := d.bitArr[l][i] << 63
+		d.bitArr[l][i] = bt | d.bitArr[l][i]>>1
+		bt = tmp
+	}
+	mask := uint64(1<<(k&63) - 1)
+	d.bitArr[l][k64] = bt | (d.bitArr[l][k64]>>1)&^mask | d.bitArr[l][k64]&mask
+
+	// shorten bitArr length if possible
+	n = (len(d.chunks[l]) + 63) >> 6
+	d.bitArr[l] = d.bitArr[l][:n]
+}
+
+// incrementIdx ...
+func (d *Dict) incrementIdx(l uint, k int) {
+	// update bitArr
+	d.bitArr[l][k>>6] |= 1 << (k & 63)
+
+	// update d.ranks[l]
+	for i := k>>9 + 1; i < len(d.ranks[l]); i++ {
+		d.ranks[l][i]++
+	}
+}
+
+// decrementIdx ...
+func (d *Dict) decrementIdx(l uint, k int) {
+	// update ranks
+	for i := k>>9 + 1; i < len(d.ranks[l]); i++ {
+		d.ranks[l][i]--
+	}
+
+	// update bitArr
+	d.bitArr[l][k>>6] &^= 1 << (k & 63)
+}
+
 // WriteBoolList writes a slice of boolean values to the dictionary.
 func (d *Dict) WriteBoolList(values []bool) {
 	l := (len(d.chunks[0])+63)>>6 - len(d.bitArr[0])
-	d.bitArr[0] = append(d.bitArr[0], make([]uint64, l)...)
+	d.bitArr[0] = append(d.bitArr[0], make([]uint64, l)...) // Dit kan sneller zonder de tweede make.
 
 	for _, v := range values {
 		if v {
@@ -427,13 +391,13 @@ func (d *Dict) WriteBoolList(values []bool) {
 func (d *Dict) WriteU8List(values []uint8) {
 	l := (len(d.chunks[0])+len(values)+63)>>6 - len(d.bitArr[0])
 	d.chunks[0] = append(d.chunks[0], values...)
-	d.bitArr[0] = append(d.bitArr[0], make([]uint64, l)...)
+	d.bitArr[0] = append(d.bitArr[0], make([]uint64, l)...) // Dit kan sneller zonder de tweede make.
 }
 
 // WriteU16List writes a slice of uint16 values to the dictionary.
 func (d *Dict) WriteU16List(values []uint16) {
 	l := (len(d.chunks[0])+len(values)+63)>>6 - len(d.bitArr[0])
-	d.bitArr[0] = append(d.bitArr[0], make([]uint64, l)...)
+	d.bitArr[0] = append(d.bitArr[0], make([]uint64, l)...) // Dit kan sneller zonder de tweede make.
 
 	for _, v := range values {
 		d.chunks[0] = append(d.chunks[0], uint8(v))
@@ -452,7 +416,7 @@ func (d *Dict) WriteU16List(values []uint16) {
 // WriteU32List writes a slice of uint32 values to the dictionary.
 func (d *Dict) WriteU32List(values []uint32) {
 	l := (len(d.chunks[0])+len(values)+63)>>6 - len(d.bitArr[0])
-	d.bitArr[0] = append(d.bitArr[0], make([]uint64, l)...)
+	d.bitArr[0] = append(d.bitArr[0], make([]uint64, l)...) // Dit kan sneller zonder de tweede make.
 
 	for _, v := range values {
 		d.chunks[0] = append(d.chunks[0], uint8(v))
@@ -472,7 +436,7 @@ func (d *Dict) WriteU32List(values []uint32) {
 // WriteU64List writes a slice of uint64 values to the dictionary.
 func (d *Dict) WriteU64List(values []uint64) {
 	l := (len(d.chunks[0])+len(values)+63)>>6 - len(d.bitArr[0])
-	d.bitArr[0] = append(d.bitArr[0], make([]uint64, l)...)
+	d.bitArr[0] = append(d.bitArr[0], make([]uint64, l)...) // Dit kan sneller zonder de tweede make.
 
 	for _, v := range values {
 		d.chunks[0] = append(d.chunks[0], uint8(v))
@@ -536,7 +500,7 @@ func (d *Dict) WriteDateTime(t time.Time) int {
 // WriteI8List writes a slice of int8 values to the dictionary.
 func (d *Dict) WriteI8List(values []int8) {
 	l := (len(d.chunks[0])+63)>>6 - len(d.bitArr[0])
-	d.bitArr[0] = append(d.bitArr[0], make([]uint64, l)...)
+	d.bitArr[0] = append(d.bitArr[0], make([]uint64, l)...) // Dit kan sneller zonder de tweede make.
 
 	for _, v := range values {
 		uv := uint8((v << 1) ^ (v >> 7))
@@ -547,7 +511,7 @@ func (d *Dict) WriteI8List(values []int8) {
 // WriteI16List writes a slice of int16 values to the dictionary.
 func (d *Dict) WriteI16List(values []int16) {
 	l := (len(d.chunks[0])+len(values)+63)>>6 - len(d.bitArr[0])
-	d.bitArr[0] = append(d.bitArr[0], make([]uint64, l)...)
+	d.bitArr[0] = append(d.bitArr[0], make([]uint64, l)...) // Dit kan sneller zonder de tweede make.
 
 	for _, v := range values {
 		uv := uint16((v << 1) ^ (v >> 15))
@@ -567,7 +531,7 @@ func (d *Dict) WriteI16List(values []int16) {
 // WriteI32List writes a slice of int32 values to the dictionary.
 func (d *Dict) WriteI32List(values []int32) {
 	l := (len(d.chunks[0])+len(values)+63)>>6 - len(d.bitArr[0])
-	d.bitArr[0] = append(d.bitArr[0], make([]uint64, l)...)
+	d.bitArr[0] = append(d.bitArr[0], make([]uint64, l)...) // Dit kan sneller zonder de tweede make.
 
 	for _, v := range values {
 		uv := uint32((v << 1) ^ (v >> 31))
@@ -588,7 +552,7 @@ func (d *Dict) WriteI32List(values []int32) {
 // WriteI64List writes a slice of int64 values to the dictionary.
 func (d *Dict) WriteI64List(values []int64) {
 	l := (len(d.chunks[0])+len(values)+63)>>6 - len(d.bitArr[0])
-	d.bitArr[0] = append(d.bitArr[0], make([]uint64, l)...)
+	d.bitArr[0] = append(d.bitArr[0], make([]uint64, l)...) // Dit kan sneller zonder de tweede make.
 
 	for _, v := range values {
 		uv := uint64((v << 1) ^ (v >> 63))
@@ -609,7 +573,7 @@ func (d *Dict) WriteI64List(values []int64) {
 // WriteFloat32List writes a slice of float values to the dictionary.
 func (d *Dict) WriteFloat32List(values []float32) {
 	l := (len(d.chunks[0])+len(values)+63)>>6 - len(d.bitArr[0])
-	d.bitArr[0] = append(d.bitArr[0], make([]uint64, l)...)
+	d.bitArr[0] = append(d.bitArr[0], make([]uint64, l)...) // Dit kan sneller zonder de tweede make.
 
 	for _, v := range values {
 		uv := bits.ReverseBytes32(math.Float32bits(v))
@@ -630,7 +594,7 @@ func (d *Dict) WriteFloat32List(values []float32) {
 // WriteFloat64List writes a slice of float64 values to the dictionary.
 func (d *Dict) WriteFloat64List(values []float64) {
 	l := (len(d.chunks[0])+len(values)+63)>>6 - len(d.bitArr[0])
-	d.bitArr[0] = append(d.bitArr[0], make([]uint64, l)...)
+	d.bitArr[0] = append(d.bitArr[0], make([]uint64, l)...) // Dit kan sneller zonder de tweede make.
 
 	for _, v := range values {
 		uv := bits.ReverseBytes64(math.Float64bits(v))
@@ -651,7 +615,7 @@ func (d *Dict) WriteFloat64List(values []float64) {
 // WriteDateTimeList writes a slice of time.Time values to the dictionary.
 func (d *Dict) WriteDateTimeList(dateTimes []time.Time) {
 	l := (len(d.chunks[0])+len(dateTimes)+63)>>6 - len(d.bitArr[0])
-	d.bitArr[0] = append(d.bitArr[0], make([]uint64, l)...)
+	d.bitArr[0] = append(d.bitArr[0], make([]uint64, l)...) // Dit kan sneller zonder de tweede make.
 
 	for _, dt := range dateTimes {
 		v := dt.UnixNano()
@@ -673,7 +637,7 @@ func (d *Dict) WriteDateTimeList(dateTimes []time.Time) {
 // ReadBool reads a boolean value at a given index in the dictionary.
 func (d *Dict) ReadBool(i int) (bool, error) {
 	if i < 0 || Len(d) <= i {
-		return false, errors.New("dac: key k is out of bounds")
+		return false, errors.New("dac: index k is out of bounds")
 	}
 	return d.chunks[0][i] != 0, nil
 }
@@ -681,7 +645,7 @@ func (d *Dict) ReadBool(i int) (bool, error) {
 // ReadU8 reads an uint8 value at a given index in the dictionary.
 func (d *Dict) ReadU8(i int) (uint8, error) {
 	if i < 0 || Len(d) <= i {
-		return 0, errors.New("dac: key k is out of bounds")
+		return 0, errors.New("dac: index k is out of bounds")
 	}
 	return d.chunks[0][i], nil
 }
@@ -689,7 +653,7 @@ func (d *Dict) ReadU8(i int) (uint8, error) {
 // ReadU16 reads an uint16 value at a given index in the dictionary.
 func (d *Dict) ReadU16(k int) (v uint16, err error) {
 	if k < 0 || len(d.chunks[0]) <= k {
-		return 0, errors.New("dac: key k is out of bounds")
+		return 0, errors.New("dac: index k is out of bounds")
 	}
 
 	buf := (*[nStreams16]byte)(unsafe.Pointer(&v))
@@ -712,7 +676,7 @@ func (d *Dict) ReadU16(k int) (v uint16, err error) {
 // ReadU32 reads an uint32 value at a given index in the dictionary.
 func (d *Dict) ReadU32(k int) (v uint32, err error) {
 	if k < 0 || len(d.chunks[0]) <= k {
-		return 0, errors.New("dac: key k is out of bounds")
+		return 0, errors.New("dac: index k is out of bounds")
 	}
 
 	buf := (*[nStreams32]byte)(unsafe.Pointer(&v))
@@ -743,7 +707,7 @@ func (d *Dict) ReadU32(k int) (v uint32, err error) {
 // ReadU64 reads an uint64 value at a given index in the dictionary.
 func (d *Dict) ReadU64(k int) (v uint64, err error) {
 	if k < 0 || len(d.chunks[0]) <= k {
-		return 0, errors.New("dac: key k is out of bounds")
+		return 0, errors.New("dac: index k is out of bounds")
 	}
 
 	buf := (*[nStreams64]byte)(unsafe.Pointer(&v))
@@ -761,8 +725,8 @@ func (d *Dict) ReadU64(k int) (v uint64, err error) {
 
 // ReadBoolList returns all values in the dictionary when they are of boolean
 // type. One can avoid the allocation of the return slice in ReadBoolList by
-// supplying a slice of a size sufficient to store all values. Still,
-// supplying a slice is optional.
+// supplying a slice of a size sufficient to store all values. Supplying a
+// slice is optional.
 func (d *Dict) ReadBoolList(values []bool) []bool {
 	m := len(d.chunks[0])
 	if len(values) < m {
@@ -784,8 +748,8 @@ func (d *Dict) ReadBoolList(values []bool) []bool {
 
 // ReadU8List returns all values in the dictionary when they are of uint8
 // type. One can avoid the allocation of the return slice in ReadU8List by
-// supplying a slice of a size sufficient to store all values. Still,
-// supplying a slice is optional.
+// supplying a slice of a size sufficient to store all values. Supplying a
+// slice is optional.
 func (d *Dict) ReadU8List(values []uint8) []uint8 {
 	m := len(d.chunks[0])
 	if len(values) < m {
@@ -802,8 +766,8 @@ func (d *Dict) ReadU8List(values []uint8) []uint8 {
 
 // ReadU16List returns all values in the dictionary when they are of uint16
 // type. One can avoid the allocation of the return slice in ReadU16List by
-// supplying a slice of a size sufficient to store all values. Still,
-// supplying a slice is optional.
+// supplying a slice of a size sufficient to store all values. Supplying a
+// slice is optional.
 func (d *Dict) ReadU16List(values []uint16) []uint16 {
 	m := len(d.chunks[0])
 	if len(values) < m {
@@ -826,8 +790,8 @@ func (d *Dict) ReadU16List(values []uint16) []uint16 {
 
 // ReadU32List returns all values in the dictionary when they are of uint32
 // type. One can avoid the allocation of the return slice in ReadU32List by
-// supplying a slice of a size sufficient to store all values. Still,
-// supplying a slice is optional.
+// supplying a slice of a size sufficient to store all values. Supplying a
+// slice is optional.
 func (d *Dict) ReadU32List(values []uint32) []uint32 {
 	m := len(d.chunks[0])
 	if len(values) < m {
@@ -854,8 +818,8 @@ func (d *Dict) ReadU32List(values []uint32) []uint32 {
 
 // ReadU64List returns all values in the dictionary when they are of uint64
 // type. One can avoid the allocation of the return slice in ReadU64List by
-// supplying a slice of a size sufficient to store all values. Still, supplying
-// a slice is optional.
+// supplying a slice of a size sufficient to store all values. Supplying a
+// slice is optional.
 func (d *Dict) ReadU64List(values []uint64) []uint64 {
 	m := len(d.chunks[0])
 	if len(values) < m {
@@ -907,7 +871,7 @@ func (d *Dict) ReadI64(i int) (int64, error) {
 // ReadFloat32 reads a float32 value at a given index in the dictionary.
 func (d *Dict) ReadFloat32(i int) (float32, error) {
 	if i < 0 || len(d.chunks[0]) <= i {
-		return 0, errors.New("dac: key k is out of bounds")
+		return 0, errors.New("dac: index k is out of bounds")
 	}
 
 	var uv uint32
@@ -927,7 +891,7 @@ func (d *Dict) ReadFloat32(i int) (float32, error) {
 // ReadFloat64 reads a float64 value at a given index in the dictionary.
 func (d *Dict) ReadFloat64(i int) (float64, error) {
 	if i < 0 || len(d.chunks[0]) <= i {
-		return 0, errors.New("dac: key k is out of bounds")
+		return 0, errors.New("dac: index k is out of bounds")
 	}
 
 	var uv uint64
@@ -974,8 +938,8 @@ func (d *Dict) ReadI8List(values []int8) []int8 {
 
 // ReadI16List returns all values in the dictionary when they are of int16
 // type. One can avoid the allocation of the return slice in ReadI16List by
-// supplying a slice of a size sufficient to store all values. Still,
-// this is optional.
+// supplying a slice of a size sufficient to store all values. Still, this
+// is optional.
 func (d *Dict) ReadI16List(values []int16) []int16 {
 	m := len(d.chunks[0])
 	if len(values) < m {
@@ -1001,8 +965,8 @@ func (d *Dict) ReadI16List(values []int16) []int16 {
 
 // ReadI32List returns all values in the dictionary when they are of int32
 // type. One can avoid the allocation of the return slice in ReadI32List by
-// supplying a slice of a size sufficient to store all values. Still,
-// this is optional.
+// supplying a slice of a size sufficient to store all values. Still, this
+// is optional.
 func (d *Dict) ReadI32List(values []int32) []int32 {
 	m := len(d.chunks[0])
 	if len(values) < m {
@@ -1176,7 +1140,7 @@ func (d *Dict) Scan(value uint64) (idx int) { // TODO: We zouden beter de high l
 				if buf[l] != d.chunks[l][k] {
 					break
 				}
-				// equal and the same length
+				// equal and same length
 				if l == uint(n) && ((l < nStreams64-1 && !d.bit(l, k)) || (l == nStreams64-1)) {
 					return i
 				}

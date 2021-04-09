@@ -178,6 +178,91 @@ func TestReadWriteU64(t *testing.T) {
 	}
 }
 
+// func TestInserta(t *testing.T) {
+// 	const n = 500
+
+// 	numbers := make([]uint64, n)
+
+// 	for i := range numbers {
+// 		numbers[i] = 5
+// 	}
+
+// 	d := From(numbers)
+
+// 	for i := range numbers {
+// 		d.InsertU64At(i, 6)
+// 	}
+
+// 	for i, want := range numbers {
+// 		got, err := d.ReadU64(i)
+// 		if got != want || err != nil {
+// 			t.Errorf("k: %d - got: %v, want: %v\n", i, got, want)
+// 		}
+// 	}
+// }
+
+// func TestInsertb(t *testing.T) {
+// 	const n = 1_000
+
+// 	numbers := make([]uint64, n)
+
+// 	for i := range numbers {
+// 		numbers[i] = 5
+// 	}
+
+// 	d := From(numbers)
+
+// 	for i := range numbers {
+// 		d.InsertU64At(0, 300*uint64(i+1))
+// 	}
+
+// 	for i, want := range numbers {
+// 		got, err := d.ReadU64(i)
+// 		if got != want || err != nil {
+// 			t.Errorf("k: %d - got: %v, want: %v\n", i, got, want)
+// 		}
+// 	}
+// }
+
+func TestInsert(t *testing.T) {
+	const n = 1_000
+
+	r := rand.New(rand.NewSource(15))
+	zipf := rand.NewZipf(r, 1.15, 1, math.MaxUint64)
+
+	numbers := make([]uint64, n)
+	for i := 0; i < n; i++ {
+		numbers[i] = zipf.Uint64()
+	}
+
+	d, err := New(n)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	d.WriteU64(0)
+	d.Close()
+
+	for _, num := range numbers {
+		d.InsertU64At(0, num)
+	}
+
+	for i := n; 0 <= i; i-- {
+		d.RemoveAt(i)
+	}
+
+	d.WriteU64(0)
+	d.Close()
+
+	for i, num := range numbers {
+		d.InsertU64At(i, num)
+	}
+
+	for i := n; 0 <= i; i-- {
+		d.RemoveAt(i)
+	}
+}
+
 func TestRemovea(t *testing.T) {
 	const n = 1_025
 
@@ -193,12 +278,18 @@ func TestRemovea(t *testing.T) {
 		d.RemoveAt(0)
 	}
 
-	for i := range numbers {
-		got, err := d.ReadU64(i)
-		want := uint64(5)
-		if got != want || err != nil {
-			t.Errorf("k: %d - got: %v, want: %v\n", i, got, want)
-		}
+	var length int
+	for _, arr := range d.chunks {
+		length += len(arr)
+	}
+	for _, arr := range d.bitArr {
+		length += len(arr)
+	}
+	for _, arr := range d.ranks {
+		length += len(arr)
+	}
+	if length != 0 {
+		t.Error("dictionary still contains values")
 	}
 }
 
@@ -208,7 +299,7 @@ func TestRemoveb(t *testing.T) {
 	numbers := make([]uint64, n)
 
 	for i := range numbers {
-		numbers[i] = uint64(300 * i)
+		numbers[i] = uint64(300 * (i + 1))
 	}
 
 	d := From(numbers)
@@ -217,17 +308,23 @@ func TestRemoveb(t *testing.T) {
 		d.RemoveAt(0)
 	}
 
-	for i := range numbers {
-		got, err := d.ReadU64(i)
-		want := uint64(5)
-		if got != want || err != nil {
-			t.Errorf("k: %d - got: %v, want: %v\n", i, got, want)
-		}
+	var length int
+	for _, arr := range d.chunks {
+		length += len(arr)
+	}
+	for _, arr := range d.bitArr {
+		length += len(arr)
+	}
+	for _, arr := range d.ranks {
+		length += len(arr)
+	}
+	if length != 0 {
+		t.Error("dictionary still contains values")
 	}
 }
 
 func TestRemove(t *testing.T) {
-	const n = 100_000
+	const n = 1_000
 
 	r := rand.New(rand.NewSource(15))
 	zipf := rand.NewZipf(r, 1.15, 1, math.MaxUint64)
@@ -253,19 +350,19 @@ func TestRemove(t *testing.T) {
 	d.Close()
 }
 
-func TestWriteU64Ata0(t *testing.T) {
+func TestUpdateU64Ata0(t *testing.T) {
 	const n = 10
 
 	numbers := make([]uint64, n)
 
 	for i := range numbers {
-		numbers[i] = uint64(300 * (i + 1))
+		numbers[i] = uint64(100000 * (i + 1))
 	}
 
 	d := From(numbers)
 
-	for range numbers {
-		d.WriteU64At(0, 5)
+	for i := range numbers {
+		d.UpdateU64At(i, 5)
 	}
 
 	for i := range numbers {
@@ -277,19 +374,19 @@ func TestWriteU64Ata0(t *testing.T) {
 	}
 }
 
-func TestWriteU64Ata(t *testing.T) {
+func TestUpdateU64Ata(t *testing.T) {
 	const n = 250
 
 	numbers := make([]uint64, n)
 
 	for i := range numbers {
-		numbers[i] = uint64(300 * (i + 1))
+		numbers[i] = uint64(300 * (n - i))
 	}
 
 	d := From(numbers)
 
 	for i := range numbers {
-		d.WriteU64At(i, 5)
+		d.UpdateU64At(i, 5)
 	}
 
 	for i := range numbers {
@@ -301,8 +398,8 @@ func TestWriteU64Ata(t *testing.T) {
 	}
 }
 
-func TestWriteU64Atb(t *testing.T) {
-	const n = 1_000
+func TestUpdateU64Atb(t *testing.T) {
+	const n = 10
 
 	numbers := make([]uint64, n)
 
@@ -313,20 +410,20 @@ func TestWriteU64Atb(t *testing.T) {
 	d := From(numbers)
 
 	for i := range numbers {
-		d.WriteU64At(i, 300*uint64(i))
+		d.UpdateU64At(i, 30000*uint64(i))
 	}
 
 	for i := range numbers {
 		got, err := d.ReadU64(i)
-		want := 300 * uint64(i)
+		want := 30000 * uint64(i)
 		if got != want || err != nil {
 			t.Errorf("k: %d - got: %v, want: %v\n", i, got, want)
 		}
 	}
 }
 
-func TestWriteU64At(t *testing.T) {
-	const n = 1_000
+func TestUpdateU64At(t *testing.T) {
+	const n = 515
 
 	d, err := New(n)
 	if err != nil {
@@ -347,13 +444,68 @@ func TestWriteU64At(t *testing.T) {
 	}
 
 	for i := range numbers {
-		d.WriteU64At(i, numbers[i])
+		d.UpdateU64At(i, numbers[i])
 	}
 
 	for i, want := range numbers {
 		got, err := d.ReadU64(i)
 		if got != want || err != nil {
 			t.Errorf("k: %d - got: %v, want: %v\n", i, got, want)
+		}
+	}
+}
+
+func TestUpdateU64At2(t *testing.T) {
+	const n = 515
+
+	d, err := New(n)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	r := rand.New(rand.NewSource(15))
+	zipf := rand.NewZipf(r, 1.15, 1, math.MaxUint64)
+
+	for i := 0; i < n; i++ {
+		d.WriteU64(zipf.Uint64())
+	}
+	d.Close()
+
+	numbers := make([]uint64, n)
+	for i := range numbers {
+		numbers[i] = zipf.Uint64()
+	}
+
+	for i, want := range numbers {
+		d.UpdateU64At(i, want)
+		for j := 0; j <= i; j++ {
+			got, err := d.ReadU64(j)
+			if got != numbers[j] || err != nil {
+				t.Errorf("i: %d, j: %d - got: %v, want: %v\n", i, j, got, numbers[j])
+			}
+		}
+	}
+}
+
+func TestUpdateU64Atx(t *testing.T) {
+	for _, tc := range []struct {
+		origList   []uint64
+		updateList []uint64
+	}{
+		{
+			[]uint64{0, 256, 512, math.MaxUint64, 0, 0, 0, 512, 512, 512, 256, 512, 1024, 1024, 2048, math.MaxUint64},
+			[]uint64{0, 256, 512, math.MaxUint64, 256, 512, 1024, 1024, 2048, math.MaxUint64, 0, 0, 0, 512, 512, 512},
+		},
+	} {
+		d := From(tc.origList)
+		for k, v := range tc.updateList {
+			d.UpdateU64At(k, v)
+		}
+		for k, want := range tc.updateList {
+			got, err := d.ReadU64(k)
+			if got != want || err != nil {
+				t.Errorf("k: %d - got: %v, want: %v\n", k, got, want)
+			}
 		}
 	}
 }
@@ -1353,7 +1505,7 @@ func TestSearch(t *testing.T) {
 	}
 }
 
-func BenchmarkTestFrom(b *testing.B) { // 8.42 ns/op   5400 B/op   53 allocs/op
+func BenchmarkFrom(b *testing.B) { // 8.42 ns/op   5400 B/op   53 allocs/op
 	const n = 1_000
 
 	numbers := make([]uint64, n)
@@ -2857,8 +3009,8 @@ func BenchmarkReadDateTimeList(b *testing.B) { // 29.5 ns/op    0 B/op    0 allo
 	}
 }
 
-func BenchmarkWriteU64At(b *testing.B) { // 53.0 ns/op    50 B/op    0 allocs/op
-	const n = 100 //                        9.31 ns/op    50 B/op    0 allocs/op
+func BenchmarkUpdateU64At(b *testing.B) { // 21.8 ns/op    0 B/op    0 allocs/op
+	const n = 1_000
 
 	d, err := New(n)
 	if err != nil {
@@ -2883,13 +3035,63 @@ func BenchmarkWriteU64At(b *testing.B) { // 53.0 ns/op    50 B/op    0 allocs/op
 
 	for i := 0; i < b.N; i++ {
 		for j := range numbers {
-			d.WriteU64At(j, numbers[j])
+			d.UpdateU64At(j, numbers[j])
 		}
 	}
 }
 
-func BenchmarkRemoveFirst(b *testing.B) { // 66.5 ns/op    64 B/op    7 allocs/op
-	const n = 1_000 //                       Remove(0), d.WriteU64List(numbers), d.Close()
+func BenchmarkInsertFirst(b *testing.B) { // 107 ns/op    0 B/op    0 allocs/op
+	const n = 1_000
+
+	r := rand.New(rand.NewSource(15))
+	zipf := rand.NewZipf(r, 1.15, 1, math.MaxUint64)
+
+	numbers := make([]uint64, n)
+	for i := range numbers {
+		numbers[i] = zipf.Uint64()
+	}
+
+	d := From([]uint64{0})
+
+	b.ReportAllocs()
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		for _, num := range numbers {
+			d.InsertU64At(0, num)
+		}
+		d.Reset()
+		d.WriteU64(0)
+	}
+}
+
+func BenchmarkInsertLast(b *testing.B) { //  37.7 ns/op    0 B/op    0 allocs/op
+	const n = 1_000
+
+	r := rand.New(rand.NewSource(15))
+	zipf := rand.NewZipf(r, 1.15, 1, math.MaxUint64)
+
+	numbers := make([]uint64, n)
+	for i := range numbers {
+		numbers[i] = zipf.Uint64()
+	}
+
+	d := From([]uint64{0})
+
+	b.ReportAllocs()
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		for k, num := range numbers {
+			d.InsertU64At(k, num)
+		}
+		d.Reset()
+		d.WriteU64(0)
+	}
+}
+
+func BenchmarkRemoveFirst(b *testing.B) { // 64.3 ns/op    64 B/op    7 allocs/op
+	const n = 1_000
 
 	r := rand.New(rand.NewSource(15))
 	zipf := rand.NewZipf(r, 1.15, 1, math.MaxUint64)
@@ -2916,8 +3118,8 @@ func BenchmarkRemoveFirst(b *testing.B) { // 66.5 ns/op    64 B/op    7 allocs/o
 	}
 }
 
-func BenchmarkRemoveLast(b *testing.B) { // 41.9 ns/op    64 B/op    7 allocs/op
-	const n = 1_000 //                      Remove(0), d.WriteU64List(numbers), d.Close()
+func BenchmarkRemoveLast(b *testing.B) { // 40.1 ns/op    64 B/op    7 allocs/op
+	const n = 1_000
 
 	r := rand.New(rand.NewSource(15))
 	zipf := rand.NewZipf(r, 1.15, 1, math.MaxUint64)
@@ -2994,7 +3196,7 @@ func BenchmarkSearch(b *testing.B) { // 41.5 ns/op    0 B/op    0 allocs/op
 }
 
 func BenchmarkRank(b *testing.B) { // 5.08 ns/op    0 B/op    0 allocs/op    n = 1_000
-	const n = 1_000 //                5.16 ns/op    0 B/op    0 allocs/op    n = 1_000_000
+	const n = 1_000
 
 	r := rand.New(rand.NewSource(15))
 	zipf := rand.NewZipf(r, 1.15, 1, math.MaxUint64)

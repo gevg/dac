@@ -17,7 +17,8 @@ func TestIterator(t *testing.T) {
 	}
 
 	d := From(numbers)
-	it := NewIterator(d)
+	// it := NewIterator(d)
+	it := d.Iter()
 
 	for i := 0; i < n; i++ {
 		v, err := it.Value(i)
@@ -57,7 +58,8 @@ func BenchmarkIteratorValue(b *testing.B) { // 13.1 ns/op    0 B/op    0 allocs/
 	}
 	d.Close()
 
-	it := NewIterator(d)
+	// it := NewIterator(d)
+	it := d.Iter()
 
 	b.ReportAllocs()
 	b.ResetTimer()
@@ -85,7 +87,8 @@ func BenchmarkIteratorNext(b *testing.B) { // 3.57 ns/op    0 B/op    0 allocs/o
 		d.WriteU64(zipf.Uint64())
 	}
 
-	it := NewIterator(d)
+	// it := NewIterator(d)
+	it := d.Iter()
 
 	b.ReportAllocs()
 	b.ResetTimer()

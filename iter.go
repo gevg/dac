@@ -5,8 +5,8 @@ import (
 	"unsafe"
 )
 
-// Iterator enables iteration over the dictionary. Concurrent
-// iteration is allowed if the dictionary is closed (no writing).
+// Iterator enables iteration over the dictionary. Concurrent iteration
+// is allowed once the dictionary is closed (no more writing).
 type Iterator struct {
 	d     *Dict               // pointer to dictionary
 	ranks [nStreams64 - 1]int // rank (starting to count from 0)
@@ -14,12 +14,12 @@ type Iterator struct {
 }
 
 // NewIterator creates an iterator for the given dictionary.
-func NewIterator(d *Dict) Iterator { // TODO: What is the preferred way: NewIterator() or d.Iter()
-	return Iterator{
-		d:     d,
-		ranks: [nStreams64 - 1]int{-1, -1, -1, -1, -1, -1, -1},
-	}
-}
+// func NewIterator(d *Dict) Iterator { // TODO: What is the preferred way: NewIterator() or d.Iter()
+// 	return Iterator{
+// 		d:     d,
+// 		ranks: [nStreams64 - 1]int{-1, -1, -1, -1, -1, -1, -1},
+// 	}
+// }
 
 // Iter creates an iterator for the dictionary.
 func (d *Dict) Iter() Iterator {
